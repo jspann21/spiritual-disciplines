@@ -51,7 +51,7 @@ jobs:
           KEYSTORE_PATH: ${{ runner.temp }}/release-keystore.jks
           STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: ./gradlew --no-daemon assembleRelease
+        run: ./gradlew --no-daemon --no-configuration-cache assembleRelease
 
       - name: Rename APK
         run: |
