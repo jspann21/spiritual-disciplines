@@ -1,5 +1,6 @@
 package com.spiritualdisciplines.ui
 
+import android.content.Context
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -50,6 +51,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -65,6 +67,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
+import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 
@@ -104,8 +107,12 @@ fun BibleReader(
     getCachedChapter: suspend (String) -> CachedChapter? = { null },
     insertCachedChapter: suspend (CachedChapter) -> Unit = {}
 ) {
+    val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val books = BibleBooks.all
+    val paragraphBreakIndex = remember(context.applicationContext) {
+        ParagraphBreakIndex.load(context.applicationContext)
+    }
 
     var currentState by remember { mutableStateOf(BibleReaderState.BOOKS) }
     var selectedBookIndex by remember { mutableIntStateOf(0) }
@@ -172,8 +179,7 @@ fun BibleReader(
                             bookId = bookId,
                             chapter = chapter,
                             currentChapterJson = jsonArray,
-                            getCachedChapter = getCachedChapter,
-                            insertCachedChapter = insertCachedChapter
+                            paragraphBreakIndex = paragraphBreakIndex
                         )
                         val verses = parseChapterVerses(jsonArray, paragraphBreaks)
                         withContext(Dispatchers.Main) {
@@ -196,8 +202,7 @@ fun BibleReader(
                                 bookId = bookId,
                                 chapter = chapter,
                                 currentChapterJson = jsonArray,
-                                getCachedChapter = getCachedChapter,
-                                insertCachedChapter = insertCachedChapter
+                                paragraphBreakIndex = paragraphBreakIndex
                             )
                             val verses = parseChapterVerses(jsonArray, paragraphBreaks)
 
@@ -548,46 +553,42 @@ fun BibleReader(
     }
 }
 
-private suspend fun fetchParagraphBreakVerseNumbers(
+private fun fetchParagraphBreakVerseNumbers(
     translation: String,
     bookId: Int,
     chapter: Int,
     currentChapterJson: JSONArray,
-    getCachedChapter: suspend (String) -> CachedChapter?,
-    insertCachedChapter: suspend (CachedChapter) -> Unit
-): Set<Int> {
-    val currentBreaks = extractParagraphBreakVerseNumbers(currentChapterJson)
+    paragraphBreakIndex: ParagraphBreakIndex
+): Set<Int> =
+    extractParagraphBreakVerseNumbers(currentChapterJson) +
+        paragraphBreakIndex.breaksFor(translation, bookId, chapter)
 
-    if (translation == PARAGRAPH_SOURCE_TRANSLATION) {
-        return currentBreaks
+private class ParagraphBreakIndex private constructor(
+    private val metadata: JSONObject
+) {
+    fun breaksFor(translation: String, bookId: Int, chapter: Int): Set<Int> {
+        val sourceTranslation = BUNDLED_PARAGRAPH_VERSIONS[translation] ?: return emptySet()
+        val chapterBreaks = metadata
+            .optJSONObject(sourceTranslation)
+            ?.optJSONObject(bookId.toString())
+            ?.optJSONArray(chapter.toString())
+            ?: return emptySet()
+
+        return (0 until chapterBreaks.length())
+            .mapTo(mutableSetOf()) { chapterBreaks.getInt(it) }
     }
 
-    val sourceCacheId = "$PARAGRAPH_SOURCE_TRANSLATION-$bookId-$chapter"
-    val sourceJson = getCachedChapter(sourceCacheId)?.versesJson ?: runCatching {
-        val url = URL("https://bolls.life/get-chapter/$PARAGRAPH_SOURCE_TRANSLATION/$bookId/$chapter/")
-        val connection = url.openConnection() as HttpURLConnection
-        connection.requestMethod = "GET"
-        connection.connectTimeout = 5000
-        connection.readTimeout = 5000
+    companion object {
+        fun load(context: Context): ParagraphBreakIndex {
+            val metadata = runCatching {
+                context.assets.open(PARAGRAPH_BREAK_ASSET).bufferedReader().use { reader ->
+                    JSONObject(reader.readText())
+                }
+            }.getOrElse { JSONObject() }
 
-        if (connection.responseCode != 200) {
-            return currentBreaks
+            return ParagraphBreakIndex(metadata)
         }
-
-        connection.inputStream.bufferedReader().use { it.readText() }.also { response ->
-            insertCachedChapter(
-                CachedChapter(
-                    id = sourceCacheId,
-                    translation = PARAGRAPH_SOURCE_TRANSLATION,
-                    bookId = bookId,
-                    chapter = chapter,
-                    versesJson = response
-                )
-            )
-        }
-    }.getOrNull() ?: return currentBreaks
-
-    return currentBreaks + extractParagraphBreakVerseNumbers(JSONArray(sourceJson))
+    }
 }
 
 private fun extractParagraphBreakVerseNumbers(jsonArray: JSONArray): Set<Int> {
@@ -651,8 +652,7 @@ private fun cleanBibleHtml(rawHtml: String): String {
 private fun hasParagraphBreak(rawHtml: String): Boolean {
     val trimmed = rawHtml.trimStart()
 
-    return rawHtml.firstOrNull()?.isWhitespace() == true ||
-        trimmed.contains(Regex("(?i)^<(b|strong)\\b")) ||
+    return trimmed.contains(Regex("(?i)^<(b|strong)\\b")) ||
         extractLeadingHeading(rawHtml) != null ||
         trimmed.contains(Regex("(?i)^<p\\b")) ||
         trimmed.contains(Regex("(?i)</p\\s*>\\s*<p\\b")) ||
@@ -763,4 +763,15 @@ private fun buildParagraphText(
     }
 }
 
-private const val PARAGRAPH_SOURCE_TRANSLATION = "ESV"
+private const val PARAGRAPH_BREAK_ASSET = "bible_paragraph_breaks.json"
+
+private val BUNDLED_PARAGRAPH_VERSIONS = mapOf(
+    "ESV" to "ESV",
+    "NIV" to "NIV",
+    // The available KJV layout is verse-by-verse, so use ESV's editorial paragraphs.
+    "KJV" to "ESV",
+    "NKJV" to "NKJV",
+    "NLT" to "NLT",
+    "NASB" to "NASB",
+    "LSB" to "LSB"
+)
