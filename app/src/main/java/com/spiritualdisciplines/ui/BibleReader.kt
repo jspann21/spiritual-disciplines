@@ -2,23 +2,16 @@ package com.spiritualdisciplines.ui
 
 import android.content.Context
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -30,10 +23,8 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -49,7 +40,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
@@ -104,7 +94,6 @@ fun BibleReader(
     initialBook: String? = null,
     initialChapter: Int? = null,
     onClose: (() -> Unit)? = null, // If provided, shows a close button
-    showBookListTopBar: Boolean = true,
     getCachedChapter: suspend (String) -> CachedChapter? = { null },
     insertCachedChapter: suspend (CachedChapter) -> Unit = {}
 ) {
@@ -258,54 +247,45 @@ fun BibleReader(
         }
     }
 
+    val closePicker: (() -> Unit)? = when {
+        canDismissChapterPicker -> ({ dismissChapterPicker() })
+        onClose != null -> onClose
+        else -> null
+    }
+
     Column(modifier = Modifier.fillMaxSize()) {
-        if (currentState != BibleReaderState.BOOKS || showBookListTopBar) TopAppBar(
-            title = {
-                when (currentState) {
-                    BibleReaderState.BOOKS -> Text("Bible Reader")
-                    BibleReaderState.CHAPTERS -> Text(books[selectedBookIndex].name)
-                    BibleReaderState.READER -> {
-                        TextButton(onClick = { openChapterPicker() }) {
-                            Text(
-                                "${books[selectedBookIndex].name} $selectedChapter",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                            Icon(Icons.Default.ArrowDropDown, contentDescription = "Change Chapter", tint = MaterialTheme.colorScheme.onPrimaryContainer)
-                        }
+        when (currentState) {
+            BibleReaderState.BOOKS -> BiblePickerHeader(
+                title = "Choose a book",
+                onClose = closePicker
+            )
+            BibleReaderState.CHAPTERS -> BiblePickerHeader(
+                title = books[selectedBookIndex].name,
+                onBack = { currentState = BibleReaderState.BOOKS },
+                onClose = closePicker
+            )
+            BibleReaderState.READER -> TopAppBar(
+                title = {
+                    TextButton(onClick = { openChapterPicker() }) {
+                        Text(
+                            "${books[selectedBookIndex].name} $selectedChapter",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                        Icon(Icons.Default.ArrowDropDown, contentDescription = "Change Chapter", tint = MaterialTheme.colorScheme.onPrimaryContainer)
                     }
-                }
-            },
-            navigationIcon = {
-                if (currentState != BibleReaderState.BOOKS) {
+                },
+                navigationIcon = {
                     IconButton(onClick = {
-                        when (currentState) {
-                            BibleReaderState.CHAPTERS -> currentState = BibleReaderState.BOOKS
-                            BibleReaderState.READER -> openChapterPicker()
-                            BibleReaderState.BOOKS -> Unit
-                        }
+                        openChapterPicker()
                     }) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = when (currentState) {
-                                BibleReaderState.CHAPTERS -> "Choose book"
-                                BibleReaderState.READER -> "Choose chapter"
-                                BibleReaderState.BOOKS -> null
-                            }
+                            contentDescription = "Choose chapter"
                         )
                     }
-                }
-            },
-            actions = {
-                if (canDismissChapterPicker) {
-                    IconButton(onClick = { dismissChapterPicker() }) {
-                        Icon(
-                            Icons.Default.Close,
-                            contentDescription = "Return to ${books[returnToBookIndex!!].name} $returnToChapter"
-                        )
-                    }
-                }
-                if (currentState == BibleReaderState.READER) {
+                },
+                actions = {
                     IconButton(
                         onClick = {
                             displayMode = when (displayMode) {
@@ -358,69 +338,45 @@ fun BibleReader(
                             }
                         )
                     }
-                }
-                if (onClose != null) {
-                    IconButton(onClick = onClose) {
-                        Icon(Icons.Default.Close, contentDescription = "Close Reader")
+                    if (onClose != null) {
+                        IconButton(onClick = onClose) {
+                            Icon(Icons.Default.Close, contentDescription = "Close Reader")
+                        }
                     }
-                }
-            },
-            colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-            ),
-            windowInsets = WindowInsets(0.dp)
-        )
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                ),
+                windowInsets = WindowInsets(0.dp)
+            )
+        }
         
         Box(modifier = Modifier.fillMaxSize().weight(1f)) {
             when (currentState) {
                 BibleReaderState.BOOKS -> {
-                    LazyColumn(modifier = Modifier.fillMaxSize()) {
-                        items(books.size) { index ->
-                            val book = books[index]
-                            ListItem(
-                                headlineContent = { Text(book.name) },
-                                trailingContent = { Text("${book.chapters} Ch") },
-                                modifier = Modifier.clickable {
-                                    selectedBookIndex = index
-                                    currentState = BibleReaderState.CHAPTERS
-                                }
-                            )
-                            HorizontalDivider()
+                    BibleBookGrid(
+                        books = books,
+                        onBookSelected = { book ->
+                            val index = books.indexOfFirst { it.id == book.id }
+                            if (index >= 0) {
+                                selectedBookIndex = index
+                                currentState = BibleReaderState.CHAPTERS
+                            }
                         }
-                    }
+                    )
                 }
                 BibleReaderState.CHAPTERS -> {
                     val chapterCount = books[selectedBookIndex].chapters
-                    LazyVerticalGrid(
-                        columns = GridCells.Adaptive(48.dp),
-                        contentPadding = PaddingValues(16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        items(chapterCount) { i ->
-                            val chap = i + 1
-                            Box(
-                                contentAlignment = Alignment.Center,
-                                modifier = Modifier
-                                    .aspectRatio(1f)
-                                    .clip(MaterialTheme.shapes.small)
-                                    .background(MaterialTheme.colorScheme.primaryContainer)
-                                    .clickable {
-                                        selectedChapter = chap
-                                        returnToBookIndex = null
-                                        returnToChapter = null
-                                        currentState = BibleReaderState.READER
-                                    }
-                            ) {
-                                Text(
-                                    text = chap.toString(),
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
-                            }
+                    BibleNumberGrid(
+                        count = chapterCount,
+                        onNumberSelected = { chapter ->
+                            selectedChapter = chapter
+                            returnToBookIndex = null
+                            returnToChapter = null
+                            currentState = BibleReaderState.READER
                         }
-                    }
+                    )
                 }
                 BibleReaderState.READER -> {
                     when {

@@ -234,7 +234,6 @@ fun BibleScreen(viewModel: MainViewModel) {
                     initialBook = readerInitialBook,
                     initialChapter = readerInitialChapter,
                     onClose = null,
-                    showBookListTopBar = false,
                     getCachedChapter = { id -> viewModel.getCachedChapter(id) },
                     insertCachedChapter = { chapter -> viewModel.insertCachedChapter(chapter) }
                 )
