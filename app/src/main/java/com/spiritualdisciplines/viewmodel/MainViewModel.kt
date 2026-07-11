@@ -55,10 +55,6 @@ class MainViewModel(private val repository: AppRepository, val preferences: AppP
     val memoryVerses: StateFlow<List<MemoryVerse>> = repository.getAllMemoryVerses()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val todayJournal: StateFlow<JournalEntry> = repository.getJournalEntry(todayDateString)
-        .map { it ?: JournalEntry(todayDateString) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), JournalEntry(todayDateString))
-
     val allJournalEntries: StateFlow<List<JournalEntry>> = repository.getAllJournalEntries()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -157,10 +153,13 @@ class MainViewModel(private val repository: AppRepository, val preferences: AppP
         }
     }
 
-    fun updateJournalEntry(update: (JournalEntry) -> JournalEntry) {
+    fun saveJournalEntry(entry: JournalEntry) {
         viewModelScope.launch {
-            val current = todayJournal.value
-            repository.insertJournalEntry(update(current))
+            repository.insertJournalEntry(entry)
+
+            if (entry.date == todayDateString) {
+                repository.insertDailyRecord(todayRecord.value.copy(journal = entry.content.isNotBlank()))
+            }
         }
     }
 

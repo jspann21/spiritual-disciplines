@@ -19,7 +19,6 @@ class AppRepository(private val appDao: AppDao) {
     suspend fun updateVerseLastReviewed(id: Int, date: String) = appDao.updateVerseLastReviewed(id, date)
     suspend fun deleteMemoryVerse(id: Int) = appDao.deleteMemoryVerse(id)
 
-    fun getJournalEntry(date: String): Flow<JournalEntry?> = appDao.getJournalEntry(date)
     fun getAllJournalEntries(): Flow<List<JournalEntry>> = appDao.getAllJournalEntries()
     suspend fun insertJournalEntry(entry: JournalEntry) = appDao.insertJournalEntry(entry)
 

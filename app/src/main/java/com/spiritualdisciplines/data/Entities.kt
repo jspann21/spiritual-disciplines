@@ -40,10 +40,7 @@ data class MemoryVerse(
 @Entity(tableName = "journal_entries")
 data class JournalEntry(
     @PrimaryKey val date: String,
-    val whatDidIRead: String = "",
-    val whatShouldIObey: String = "",
-    val whatShouldIPrayAbout: String = "",
-    val whatAmIThankfulFor: String = ""
+    val content: String = ""
 )
 
 @Entity(tableName = "cached_verses")

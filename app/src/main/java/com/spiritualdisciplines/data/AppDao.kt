@@ -48,9 +48,6 @@ interface AppDao {
     suspend fun deleteMemoryVerse(id: Int)
 
     // Journal Entries
-    @Query("SELECT * FROM journal_entries WHERE date = :date")
-    fun getJournalEntry(date: String): Flow<JournalEntry?>
-
     @Query("SELECT * FROM journal_entries ORDER BY date DESC")
     fun getAllJournalEntries(): Flow<List<JournalEntry>>
 
