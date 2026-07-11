@@ -52,6 +52,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -93,8 +94,7 @@ private data class BibleVerse(
 )
 
 private data class BibleParagraph(
-    val verses: List<BibleVerse>,
-    val isIndented: Boolean
+    val verses: List<BibleVerse>
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -445,9 +445,6 @@ fun BibleReader(
                                 fontSize = fontSize.sp.sp,
                                 lineHeight = (fontSize.sp + 8).sp
                             )
-                            val verseNumberStyle = MaterialTheme.typography.labelMedium.copy(
-                                fontSize = (fontSize.sp - 4).sp
-                            )
                             val verseNumberColor = MaterialTheme.colorScheme.primary
                             Column(
                                 modifier = Modifier
@@ -457,6 +454,16 @@ fun BibleReader(
                             ) {
                                 if (displayMode == BibleDisplayMode.PARAGRAPH) {
                                     buildParagraphs(chapterContent).forEach { paragraph ->
+                                        paragraph.verses.firstOrNull()?.heading?.let { heading ->
+                                            Text(
+                                                text = heading,
+                                                style = verseTextStyle.copy(
+                                                    fontSize = (fontSize.sp - 1).sp
+                                                ),
+                                                color = verseNumberColor,
+                                                fontWeight = FontWeight.SemiBold
+                                            )
+                                        }
                                         Text(
                                             text = buildParagraphText(
                                                 verses = paragraph.verses,
@@ -465,7 +472,7 @@ fun BibleReader(
                                             ),
                                             style = verseTextStyle.copy(
                                                 textIndent = TextIndent(
-                                                    firstLine = if (paragraph.isIndented) 18.sp else 0.sp
+                                                    firstLine = 18.sp
                                                 )
                                             ),
                                             modifier = Modifier.padding(bottom = 18.dp)
@@ -482,26 +489,20 @@ fun BibleReader(
                                                 modifier = Modifier.padding(top = 10.dp, bottom = 8.dp)
                                             )
                                         }
-                                        Row(
+                                        Text(
+                                            text = buildVerseText(
+                                                verse = verse,
+                                                fontSizeSp = fontSize.sp,
+                                                verseNumberColor = verseNumberColor
+                                            ),
+                                            style = verseTextStyle,
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .padding(
                                                     top = if (verse.startsParagraph) 8.dp else 0.dp,
                                                     bottom = 12.dp
                                                 )
-                                        ) {
-                                            Text(
-                                                text = verse.number.toString(),
-                                                style = verseNumberStyle,
-                                                color = verseNumberColor,
-                                                modifier = Modifier.padding(end = 12.dp)
-                                            )
-                                            Text(
-                                                text = verse.text,
-                                                style = verseTextStyle,
-                                                modifier = Modifier.weight(1f)
-                                            )
-                                        }
+                                        )
                                     }
                                 }
                                 
@@ -720,10 +721,7 @@ private fun buildParagraphs(verses: List<BibleVerse>): List<BibleParagraph> {
     }
 
     return paragraphs.map { paragraph ->
-        BibleParagraph(
-            verses = paragraph,
-            isIndented = paragraph.firstOrNull()?.let { it.startsParagraph && it.heading == null } == true
-        )
+        BibleParagraph(verses = paragraph)
     }
 }
 
@@ -733,34 +731,38 @@ private fun buildParagraphText(
     verseNumberColor: Color
 ) = buildAnnotatedString {
     verses.forEachIndexed { index, verse ->
-        var addedHeading = false
-        verse.heading?.let { heading ->
-            if (length > 0) append("\n\n")
-            withStyle(
-                SpanStyle(
-                    color = verseNumberColor,
-                    fontSize = (fontSizeSp - 1).sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-            ) {
-                append(heading)
-            }
-            append("\n")
-            addedHeading = true
-        }
-        if (index > 0 && !addedHeading) append(" ")
-        withStyle(
-            SpanStyle(
-                color = verseNumberColor,
-                fontSize = (fontSizeSp - 5).sp,
-                baselineShift = BaselineShift.Superscript
-            )
-        ) {
-            append(verse.number.toString())
-        }
-        append(" ")
-        append(verse.text)
+        if (index > 0) append(" ")
+        appendVerseNumberAndText(verse, fontSizeSp, verseNumberColor)
     }
+}
+
+private fun buildVerseText(
+    verse: BibleVerse,
+    fontSizeSp: Int,
+    verseNumberColor: Color
+) = buildAnnotatedString {
+    appendVerseNumberAndText(verse, fontSizeSp, verseNumberColor)
+}
+
+/** Keeps a verse marker with the first word that follows it when the text wraps. */
+private fun AnnotatedString.Builder.appendVerseNumberAndText(
+    verse: BibleVerse,
+    fontSizeSp: Int,
+    verseNumberColor: Color
+) {
+    withStyle(
+        SpanStyle(
+            color = verseNumberColor,
+            fontSize = (fontSizeSp - 5).sp,
+            baselineShift = BaselineShift.Superscript
+        )
+    ) {
+        append(verse.number.toString())
+    }
+
+    // A non-breaking space makes the marker and first word one line-breaking unit.
+    append('\u00A0')
+    append(verse.text.trimStart())
 }
 
 private const val PARAGRAPH_BREAK_ASSET = "bible_paragraph_breaks.json"
