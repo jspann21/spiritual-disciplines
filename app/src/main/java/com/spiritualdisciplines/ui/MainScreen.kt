@@ -1,5 +1,6 @@
 package com.spiritualdisciplines.ui
 
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Book
@@ -53,6 +54,7 @@ val bottomNavItems = listOf(
 fun MainScreen(viewModel: MainViewModel) {
     val navController = rememberNavController()
     Scaffold(
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         bottomBar = {
             NavigationBar {
                 val navBackStackEntry by navController.currentBackStackEntryAsState()

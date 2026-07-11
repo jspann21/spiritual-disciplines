@@ -35,9 +35,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.only
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.spiritualdisciplines.data.ReadingPlanRepository
@@ -122,9 +119,6 @@ fun BibleScreen(viewModel: MainViewModel) {
                 if (selectedTabIndex == 0) {
                     TopAppBar(
                         title = { Text("Bible Reading") },
-                        // MainScreen already applies the status-bar inset to each destination.
-                        // Avoid applying it again inside this nested Scaffold.
-                        windowInsets = TopAppBarDefaults.windowInsets.only(WindowInsetsSides.Horizontal),
                     )
                 }
                 TabRow(selectedTabIndex = selectedTabIndex) {
