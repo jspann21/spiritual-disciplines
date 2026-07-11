@@ -79,4 +79,26 @@ object BibleBooks {
     fun indexOf(name: String): Int = all.indexOfFirst { it.name.equals(name, ignoreCase = true) }
 
     fun idForName(name: String): Int? = all.firstOrNull { it.name == name }?.id
+
+    fun sblAbbreviationFor(name: String): String = sblAbbreviations[name] ?: name
+
+    private val sblAbbreviations = mapOf(
+        "Genesis" to "Gen", "Exodus" to "Exod", "Leviticus" to "Lev", "Numbers" to "Num",
+        "Deuteronomy" to "Deut", "Joshua" to "Josh", "Judges" to "Judg", "Ruth" to "Ruth",
+        "1 Samuel" to "1 Sam", "2 Samuel" to "2 Sam", "1 Kings" to "1 Kgs", "2 Kings" to "2 Kgs",
+        "1 Chronicles" to "1 Chr", "2 Chronicles" to "2 Chr", "Ezra" to "Ezra", "Nehemiah" to "Neh",
+        "Esther" to "Esth", "Job" to "Job", "Psalms" to "Ps", "Proverbs" to "Prov",
+        "Ecclesiastes" to "Eccl", "Song of Solomon" to "Song", "Isaiah" to "Isa", "Jeremiah" to "Jer",
+        "Lamentations" to "Lam", "Ezekiel" to "Ezek", "Daniel" to "Dan", "Hosea" to "Hos",
+        "Joel" to "Joel", "Amos" to "Amos", "Obadiah" to "Obad", "Jonah" to "Jon",
+        "Micah" to "Mic", "Nahum" to "Nah", "Habakkuk" to "Hab", "Zephaniah" to "Zeph",
+        "Haggai" to "Hag", "Zechariah" to "Zech", "Malachi" to "Mal", "Matthew" to "Matt",
+        "Mark" to "Mark", "Luke" to "Luke", "John" to "John", "Acts" to "Acts",
+        "Romans" to "Rom", "1 Corinthians" to "1 Cor", "2 Corinthians" to "2 Cor", "Galatians" to "Gal",
+        "Ephesians" to "Eph", "Philippians" to "Phil", "Colossians" to "Col", "1 Thessalonians" to "1 Thess",
+        "2 Thessalonians" to "2 Thess", "1 Timothy" to "1 Tim", "2 Timothy" to "2 Tim", "Titus" to "Titus",
+        "Philemon" to "Phlm", "Hebrews" to "Heb", "James" to "Jas", "1 Peter" to "1 Pet",
+        "2 Peter" to "2 Pet", "1 John" to "1 John", "2 John" to "2 John", "3 John" to "3 John",
+        "Jude" to "Jude", "Revelation" to "Rev"
+    )
 }

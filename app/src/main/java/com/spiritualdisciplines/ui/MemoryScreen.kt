@@ -443,7 +443,11 @@ fun AddVerseDialog(translation: String, onDismiss: () -> Unit, onAdd: (String, S
                                             }
                                             .padding(4.dp)
                                     ) {
-                                        Text(book.name, style = MaterialTheme.typography.labelMedium, textAlign = TextAlign.Center)
+                                        Text(
+                                            BibleBooks.sblAbbreviationFor(book.name),
+                                            style = MaterialTheme.typography.labelMedium,
+                                            textAlign = TextAlign.Center
+                                        )
                                     }
                                 }
                             }
