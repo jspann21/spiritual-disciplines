@@ -1,14 +1,12 @@
 package com.spiritualdisciplines.ui
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -17,9 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
@@ -44,7 +39,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -55,7 +49,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -63,6 +56,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.spiritualdisciplines.data.BibleBooks
+import com.spiritualdisciplines.data.BibleVerseCounts
 import com.spiritualdisciplines.data.MemoryVerse
 import com.spiritualdisciplines.viewmodel.MainViewModel
 import kotlinx.coroutines.Dispatchers
@@ -343,6 +337,57 @@ enum class PickerStage {
     BOOK, CHAPTER, VERSE, REVIEW
 }
 
+private suspend fun fetchMemoryVerses(
+    translation: String,
+    bookId: Int,
+    chapter: Int,
+    verses: List<Int>
+): String = withContext(Dispatchers.IO) {
+    val url = URL("https://bolls.life/get-verses/")
+    val connection = url.openConnection() as HttpURLConnection
+    try {
+        connection.requestMethod = "POST"
+        connection.setRequestProperty("Content-Type", "application/json")
+        connection.setRequestProperty("User-Agent", "SpiritualDisciplines/1.0")
+        connection.doOutput = true
+        connection.connectTimeout = 10_000
+        connection.readTimeout = 10_000
+
+        val request = JSONObject().apply {
+            put("translation", translation)
+            put("book", bookId)
+            put("chapter", chapter)
+            put("verses", JSONArray(verses))
+        }
+        val requestBody = JSONArray().put(request).toString().toByteArray(Charsets.UTF_8)
+        connection.outputStream.use { it.write(requestBody) }
+
+        val responseCode = connection.responseCode
+        if (responseCode != HttpURLConnection.HTTP_OK) {
+            error("Bolls returned HTTP $responseCode")
+        }
+
+        val response = connection.inputStream.bufferedReader().use { it.readText() }
+        val groups = JSONArray(response)
+        if (groups.length() == 0) error("Bolls returned no verse groups")
+        val returnedVerses = groups.getJSONArray(0)
+        if (returnedVerses.length() != verses.size) {
+            error("Bolls returned ${returnedVerses.length()} of ${verses.size} requested verses")
+        }
+        buildList {
+            for (i in 0 until returnedVerses.length()) {
+                add(
+                    returnedVerses.getJSONObject(i).getString("text")
+                        .replace(Regex("<.*?>"), "")
+                        .trim()
+                )
+            }
+        }.joinToString(" ")
+    } finally {
+        connection.disconnect()
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddVerseDialog(translation: String, onDismiss: () -> Unit, onAdd: (String, String) -> Unit) {
@@ -398,259 +443,168 @@ fun AddVerseDialog(translation: String, onDismiss: () -> Unit, onAdd: (String, S
             color = MaterialTheme.colorScheme.surface,
             modifier = Modifier.fillMaxWidth(0.9f).heightIn(max = 700.dp)
         ) {
-            Column(modifier = Modifier.padding(24.dp)) {
-                // Header
-                Text(
-                    text = when (stage) {
-                        PickerStage.BOOK -> "Pick Book"
+            Column {
+                BiblePickerHeader(
+                    title = when (stage) {
+                        PickerStage.BOOK -> "Choose a book"
                         PickerStage.CHAPTER -> selectedBook
                         PickerStage.VERSE -> "$selectedBook $selectedChapter"
-                        PickerStage.REVIEW -> "Review Verse"
+                        PickerStage.REVIEW -> "Review verse"
                     },
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.clickable {
-                        when (stage) {
-                            PickerStage.CHAPTER -> stage = PickerStage.BOOK
-                            PickerStage.VERSE -> stage = PickerStage.CHAPTER
-                            else -> {}
+                    onBack = if (stage == PickerStage.BOOK) {
+                        null
+                    } else {
+                        {
+                            stage = when (stage) {
+                                PickerStage.CHAPTER -> PickerStage.BOOK
+                                PickerStage.VERSE -> PickerStage.CHAPTER
+                                PickerStage.REVIEW -> PickerStage.VERSE
+                                PickerStage.BOOK -> PickerStage.BOOK
+                            }
                         }
-                    }
+                    },
+                    onClose = onDismiss
                 )
-                
-                Spacer(modifier = Modifier.height(16.dp))
 
-                // Content
-                Box(modifier = Modifier.weight(1f, fill = false)) {
-                    when (stage) {
-                        PickerStage.BOOK -> {
-                            LazyVerticalGrid(
-                                columns = GridCells.Adaptive(100.dp),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                items(books) { book ->
-                                    Box(
-                                        contentAlignment = Alignment.Center,
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(48.dp)
-                                            .clip(MaterialTheme.shapes.medium)
-                                            .background(MaterialTheme.colorScheme.primaryContainer)
-                                            .clickable {
-                                                selectedBook = book.name
-                                                stage = PickerStage.CHAPTER
-                                            }
-                                            .padding(4.dp)
-                                    ) {
-                                        Text(
-                                            BibleBooks.sblAbbreviationFor(book.name),
-                                            style = MaterialTheme.typography.labelMedium,
-                                            textAlign = TextAlign.Center
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                        PickerStage.CHAPTER -> {
-                            val chapters = books.firstOrNull { it.name == selectedBook }?.chapters ?: 50
-                            LazyVerticalGrid(
-                                columns = GridCells.Adaptive(48.dp),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                items(chapters) { i ->
-                                    val chapter = i + 1
-                                    Box(
-                                        contentAlignment = Alignment.Center,
-                                        modifier = Modifier
-                                            .aspectRatio(1f)
-                                            .clip(MaterialTheme.shapes.small)
-                                            .background(MaterialTheme.colorScheme.primaryContainer)
-                                            .clickable {
-                                                selectedChapter = chapter
-                                                selectedVerses = emptySet()
-                                                stage = PickerStage.VERSE
-                                            }
-                                    ) {
-                                        Text(chapter.toString(), style = MaterialTheme.typography.bodyMedium)
-                                    }
-                                }
-                            }
-                        }
-                        PickerStage.VERSE -> {
-                            Column {
-                                Text("Select one or multiple verses", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Spacer(modifier = Modifier.height(8.dp))
-                                LazyVerticalGrid(
-                                    columns = GridCells.Adaptive(48.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                                    modifier = Modifier.weight(1f, fill = false)
-                                ) {
-                                    items(176) { i ->
-                                        val verse = i + 1
-                                        val isSelected = selectedVerses.contains(verse)
-                                        Box(
-                                            contentAlignment = Alignment.Center,
-                                            modifier = Modifier
-                                                .aspectRatio(1f)
-                                                .clip(MaterialTheme.shapes.small)
-                                                .background(if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primaryContainer)
-                                                .clickable {
-                                                    selectedVerses = if (isSelected) {
-                                                        selectedVerses - verse
-                                                    } else {
-                                                        selectedVerses + verse
-                                                    }
-                                                }
-                                        ) {
-                                            Text(
-                                                verse.toString(),
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        PickerStage.REVIEW -> {
-                            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                                BasicTextField(
-                                    value = fetchedReference,
-                                    onValueChange = { fetchedReference = it },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    textStyle = MaterialTheme.typography.titleLarge.copy(
-                                        color = MaterialTheme.colorScheme.primary
-                                    ),
-                                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary)
-                                )
-                                BasicTextField(
-                                    value = fetchedText,
-                                    onValueChange = { fetchedText = it },
-                                    modifier = Modifier.fillMaxWidth().heightIn(min = 150.dp),
-                                    textStyle = MaterialTheme.typography.bodyLarge.copy(
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    ),
-                                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary)
-                                )
-                                if (errorMessage != null) {
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    Text(errorMessage.orEmpty(), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
-                                }
-                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Actions
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    if (isFetching) {
-                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                        Spacer(modifier = Modifier.width(16.dp))
-                    }
-                    
-                    TextButton(onClick = {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Box(modifier = Modifier.weight(1f, fill = false)) {
                         when (stage) {
-                            PickerStage.BOOK -> onDismiss()
-                            PickerStage.CHAPTER -> stage = PickerStage.BOOK
-                            PickerStage.VERSE -> stage = PickerStage.CHAPTER
-                            PickerStage.REVIEW -> stage = PickerStage.VERSE
-                        }
-                    }) {
-                        Text(if (stage == PickerStage.BOOK) "Cancel" else "Back")
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    
-                    if (stage == PickerStage.VERSE) {
-                        Button(
-                            onClick = {
-                                val ref = "$selectedBook $selectedChapter:${formatVerses(selectedVerses)}"
-                                isFetching = true
-                                errorMessage = null
-                                coroutineScope.launch {
-                                    val text = withContext(Dispatchers.IO) {
-                                        try {
-                                            val bookId = BibleBooks.idForName(selectedBook) ?: return@withContext null
-                                            val url = URL("https://bolls.life/get-verses/")
-                                            val connection = url.openConnection() as HttpURLConnection
-                                            connection.requestMethod = "POST"
-                                            connection.setRequestProperty("Content-Type", "application/json")
-                                            connection.setRequestProperty("User-Agent", "Mozilla/5.0")
-                                            connection.doOutput = true
-                                            connection.connectTimeout = 5000
-                                            connection.readTimeout = 5000
-                                            
-                                            val reqObj = JSONObject()
-                                            reqObj.put("translation", translation)
-                                            reqObj.put("book", bookId)
-                                            reqObj.put("chapter", selectedChapter)
-                                            val versesArray = JSONArray()
-                                            selectedVerses.sorted().forEach { versesArray.put(it) }
-                                            reqObj.put("verses", versesArray)
-                                            
-                                            val rootArray = JSONArray().put(reqObj)
-                                            
-                                            connection.outputStream.use { os ->
-                                                val input = rootArray.toString().toByteArray(Charsets.UTF_8)
-                                                os.write(input, 0, input.size)
-                                            }
-                                            
-                                            if (connection.responseCode == 200) {
-                                                val response = connection.inputStream.bufferedReader().use { it.readText() }
-                                                val resArray = JSONArray(response)
-                                                if (resArray.length() > 0) {
-                                                    val verseItems = resArray.getJSONArray(0)
-                                                    if (verseItems.length() > 0) {
-                                                        val sb = StringBuilder()
-                                                        for (i in 0 until verseItems.length()) {
-                                                            val vObj = verseItems.getJSONObject(i)
-                                                            val vText = vObj.getString("text").replace(Regex("<.*?>"), "").trim()
-                                                            sb.append(vText).append(" ")
-                                                        }
-                                                        sb.toString().trim()
-                                                    } else null
-                                                } else {
-                                                    null
-                                                }
+                            PickerStage.BOOK -> {
+                                BibleBookGrid(
+                                    books = books,
+                                    onBookSelected = { book ->
+                                        selectedBook = book.name
+                                        stage = PickerStage.CHAPTER
+                                    },
+                                    contentPadding = PaddingValues(0.dp)
+                                )
+                            }
+                            PickerStage.CHAPTER -> {
+                                val chapters = books.firstOrNull { it.name == selectedBook }?.chapters ?: 50
+                                BibleNumberGrid(
+                                    count = chapters,
+                                    onNumberSelected = { chapter ->
+                                        selectedChapter = chapter
+                                        selectedVerses = emptySet()
+                                        stage = PickerStage.VERSE
+                                    },
+                                    contentPadding = PaddingValues(0.dp)
+                                )
+                            }
+                            PickerStage.VERSE -> {
+                                val bookId = BibleBooks.idForName(selectedBook)
+                                val verseCount = bookId?.let {
+                                    BibleVerseCounts.forChapter(it, selectedChapter, translation)
+                                } ?: 0
+                                Column {
+                                    Text(
+                                        "Select one or multiple verses",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    BibleNumberGrid(
+                                        count = verseCount,
+                                        selectedNumbers = selectedVerses,
+                                        onNumberSelected = { verse ->
+                                            selectedVerses = if (verse in selectedVerses) {
+                                                selectedVerses - verse
                                             } else {
-                                                null
+                                                selectedVerses + verse
                                             }
-                                        } catch (_: Exception) {
-                                            null
-                                        }
-                                    }
-                                    isFetching = false
-                                    if (!text.isNullOrBlank()) {
-                                        fetchedReference = ref
-                                        fetchedText = text
-                                        stage = PickerStage.REVIEW
-                                    } else {
-                                        fetchedReference = ref
-                                        fetchedText = ""
-                                        errorMessage = "Could not fetch verse. Please enter manually. (Translation might not be supported)"
-                                        stage = PickerStage.REVIEW
+                                        },
+                                        modifier = Modifier.weight(1f, fill = false),
+                                        contentPadding = PaddingValues(0.dp)
+                                    )
+                                }
+                            }
+                            PickerStage.REVIEW -> {
+                                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                                    BasicTextField(
+                                        value = fetchedReference,
+                                        onValueChange = { fetchedReference = it },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        textStyle = MaterialTheme.typography.titleLarge.copy(
+                                            color = MaterialTheme.colorScheme.primary
+                                        ),
+                                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary)
+                                    )
+                                    BasicTextField(
+                                        value = fetchedText,
+                                        onValueChange = { fetchedText = it },
+                                        modifier = Modifier.fillMaxWidth().heightIn(min = 150.dp),
+                                        textStyle = MaterialTheme.typography.bodyLarge.copy(
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        ),
+                                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary)
+                                    )
+                                    if (errorMessage != null) {
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Text(errorMessage.orEmpty(), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                                     }
                                 }
-                            },
-                            enabled = !isFetching && selectedVerses.isNotEmpty()
-                        ) {
-                            Text("Fetch")
-                        }
-                    } else if (stage == PickerStage.REVIEW) {
-                        Button(onClick = {
-                            if (fetchedReference.isNotBlank() && fetchedText.isNotBlank()) {
-                                onAdd(fetchedReference, fetchedText)
                             }
-                        }) {
-                            Text("Save")
+                        }
+                    }
+
+                    if (stage == PickerStage.VERSE || stage == PickerStage.REVIEW || isFetching) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            if (isFetching) {
+                                CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                                Spacer(modifier = Modifier.width(16.dp))
+                            }
+                            if (stage == PickerStage.VERSE) {
+                                Button(
+                                    onClick = {
+                                        val ref = "$selectedBook $selectedChapter:${formatVerses(selectedVerses)}"
+                                        errorMessage = null
+                                        isFetching = true
+                                        coroutineScope.launch {
+                                            val requestedVerses = selectedVerses.sorted()
+                                            try {
+                                                val bookId = BibleBooks.idForName(selectedBook)
+                                                    ?: error("Unknown Bible book: $selectedBook")
+                                                fetchedText = fetchMemoryVerses(
+                                                    translation = translation,
+                                                    bookId = bookId,
+                                                    chapter = selectedChapter,
+                                                    verses = requestedVerses
+                                                )
+                                                fetchedReference = ref
+                                                stage = PickerStage.REVIEW
+                                            } catch (exception: Exception) {
+                                                Log.e(
+                                                    "AddVerseDialog",
+                                                    "Failed to fetch $selectedBook $selectedChapter:${requestedVerses.joinToString()}",
+                                                    exception
+                                                )
+                                                fetchedReference = ref
+                                                fetchedText = ""
+                                                errorMessage = "Could not fetch verse. Please check your internet connection."
+                                                stage = PickerStage.REVIEW
+                                            } finally {
+                                                isFetching = false
+                                            }
+                                        }
+                                    },
+                                    enabled = !isFetching && selectedVerses.isNotEmpty()
+                                ) {
+                                    Text("Fetch")
+                                }
+                            } else if (stage == PickerStage.REVIEW) {
+                                Button(onClick = {
+                                    if (fetchedReference.isNotBlank() && fetchedText.isNotBlank()) {
+                                        onAdd(fetchedReference, fetchedText)
+                                    }
+                                }) {
+                                    Text("Save")
+                                }
+                            }
                         }
                     }
                 }
