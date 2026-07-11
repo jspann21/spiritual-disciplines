@@ -12,19 +12,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
-import androidx.compose.material.icons.filled.History
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
@@ -54,13 +49,11 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun BibleScreen(viewModel: MainViewModel) {
     val todayRecord by viewModel.todayRecord.collectAsStateWithLifecycle()
-    val todayJournal by viewModel.todayJournal.collectAsStateWithLifecycle()
     val readingPlanId by viewModel.readingPlanId.collectAsStateWithLifecycle()
     val startDateEpoch by viewModel.readingPlanStartDate.collectAsStateWithLifecycle()
     val preferredTranslation by viewModel.preferences.bibleTranslation.collectAsStateWithLifecycle(initialValue = "NIV")
     val allRecords by viewModel.allDailyRecords.collectAsStateWithLifecycle()
     
-    var showHistory by remember { mutableStateOf(false) }
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     var readerInitialBook by remember { mutableStateOf<String?>(null) }
     var readerInitialChapter by remember { mutableStateOf<Int?>(null) }
@@ -132,11 +125,6 @@ fun BibleScreen(viewModel: MainViewModel) {
                         // MainScreen already applies the status-bar inset to each destination.
                         // Avoid applying it again inside this nested Scaffold.
                         windowInsets = TopAppBarDefaults.windowInsets.only(WindowInsetsSides.Horizontal),
-                        actions = {
-                            IconButton(onClick = { showHistory = true }) {
-                                Icon(Icons.Default.History, contentDescription = "Reading History")
-                            }
-                        }
                     )
                 }
                 TabRow(selectedTabIndex = selectedTabIndex) {
@@ -241,20 +229,6 @@ fun BibleScreen(viewModel: MainViewModel) {
                         }
                     }
                 }
-
-                Text("Notes", style = MaterialTheme.typography.titleLarge)
-                OutlinedTextField(
-                    value = todayJournal.whatDidIRead,
-                    onValueChange = { newValue -> 
-                        viewModel.updateJournalEntry { it.copy(whatDidIRead = newValue) }
-                    },
-                    modifier = Modifier.fillMaxWidth().weight(1f),
-                    placeholder = { Text("What did you learn today?") }
-                )
-            }
-            
-            if (showHistory) {
-                ReadingHistoryModal(viewModel = viewModel, onDismiss = { showHistory = false })
             }
         } else {
             Box(modifier = Modifier.padding(padding).fillMaxSize()) {
@@ -266,45 +240,6 @@ fun BibleScreen(viewModel: MainViewModel) {
                     getCachedChapter = { id -> viewModel.getCachedChapter(id) },
                     insertCachedChapter = { chapter -> viewModel.insertCachedChapter(chapter) }
                 )
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun ReadingHistoryModal(viewModel: MainViewModel, onDismiss: () -> Unit) {
-    val allJournalEntries by viewModel.allJournalEntries.collectAsStateWithLifecycle()
-    
-    // Filter to only entries where there's some reading note
-    val readingHistory = allJournalEntries.filter { it.whatDidIRead.isNotBlank() }
-
-    ModalBottomSheet(onDismissRequest = onDismiss) {
-        Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
-            Text("Reading History Notes", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary)
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            if (readingHistory.isEmpty()) {
-                Text("No reading notes yet.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Spacer(modifier = Modifier.height(32.dp))
-            } else {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    items(readingHistory) { entry ->
-                        Card(modifier = Modifier.fillMaxWidth()) {
-                            Column(modifier = Modifier.padding(12.dp)) {
-                                val parsedDate = try {
-                                    LocalDate.parse(entry.date).format(DateTimeFormatter.ofPattern("MMM d, yyyy"))
-                                } catch (e: Exception) {
-                                    entry.date
-                                }
-                                Text(parsedDate, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(entry.whatDidIRead, style = MaterialTheme.typography.bodyMedium)
-                            }
-                        }
-                    }
-                    item { Spacer(modifier = Modifier.height(32.dp)) }
-                }
             }
         }
     }
