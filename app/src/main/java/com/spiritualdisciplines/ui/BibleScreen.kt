@@ -7,10 +7,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
@@ -115,12 +117,13 @@ fun BibleScreen(viewModel: MainViewModel) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = { 
-            Column {
-                if (selectedTabIndex == 0) {
-                    TopAppBar(
-                        title = { Text("Bible Reading") },
-                    )
-                }
+            Column(modifier = Modifier.statusBarsPadding()) {
+                TopAppBar(
+                    title = {
+                        Text(if (selectedTabIndex == 0) "Bible Reading" else "Bible Reader")
+                    },
+                    windowInsets = WindowInsets(0.dp)
+                )
                 TabRow(selectedTabIndex = selectedTabIndex) {
                     tabs.forEachIndexed { index, title ->
                         Tab(
@@ -231,6 +234,7 @@ fun BibleScreen(viewModel: MainViewModel) {
                     initialBook = readerInitialBook,
                     initialChapter = readerInitialChapter,
                     onClose = null,
+                    showBookListTopBar = false,
                     getCachedChapter = { id -> viewModel.getCachedChapter(id) },
                     insertCachedChapter = { chapter -> viewModel.insertCachedChapter(chapter) }
                 )
