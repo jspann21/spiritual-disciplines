@@ -1,5 +1,6 @@
 package com.spiritualdisciplines.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -111,6 +112,24 @@ fun BibleReader(
     var selectedChapter by remember { mutableIntStateOf(1) }
     var displayMode by remember { mutableStateOf(BibleDisplayMode.PARAGRAPH) }
     var fontSize by remember { mutableStateOf(BibleFontSize.MEDIUM) }
+    var returnToBookIndex by remember { mutableStateOf<Int?>(null) }
+    var returnToChapter by remember { mutableStateOf<Int?>(null) }
+
+    fun openChapterPicker() {
+        returnToBookIndex = selectedBookIndex
+        returnToChapter = selectedChapter
+        currentState = BibleReaderState.CHAPTERS
+    }
+
+    fun dismissChapterPicker() {
+        val bookIndex = returnToBookIndex ?: return
+        val chapter = returnToChapter ?: return
+        selectedBookIndex = bookIndex
+        selectedChapter = chapter
+        returnToBookIndex = null
+        returnToChapter = null
+        currentState = BibleReaderState.READER
+    }
 
     LaunchedEffect(initialBook, initialChapter) {
         if (initialBook != null) {
@@ -130,16 +149,20 @@ fun BibleReader(
     var chapterContent by remember { mutableStateOf<List<BibleVerse>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    var displayedChapterKey by remember { mutableStateOf<String?>(null) }
 
     fun fetchChapter() {
+        val bookId = books[selectedBookIndex].id
+        val chapter = selectedChapter
+        val cacheId = "$translation-$bookId-$chapter"
+
         isLoading = true
         error = null
         chapterContent = emptyList()
+        displayedChapterKey = cacheId
         coroutineScope.launch {
             withContext(Dispatchers.IO) {
                 try {
-                    val bookId = books[selectedBookIndex].id
-                    val cacheId = "$translation-$bookId-$selectedChapter"
                     val cachedChapter = getCachedChapter(cacheId)
 
                     if (cachedChapter != null) {
@@ -147,7 +170,7 @@ fun BibleReader(
                         val paragraphBreaks = fetchParagraphBreakVerseNumbers(
                             translation = translation,
                             bookId = bookId,
-                            chapter = selectedChapter,
+                            chapter = chapter,
                             currentChapterJson = jsonArray,
                             getCachedChapter = getCachedChapter,
                             insertCachedChapter = insertCachedChapter
@@ -171,7 +194,7 @@ fun BibleReader(
                             val paragraphBreaks = fetchParagraphBreakVerseNumbers(
                                 translation = translation,
                                 bookId = bookId,
-                                chapter = selectedChapter,
+                                chapter = chapter,
                                 currentChapterJson = jsonArray,
                                 getCachedChapter = getCachedChapter,
                                 insertCachedChapter = insertCachedChapter
@@ -183,7 +206,7 @@ fun BibleReader(
                                 id = cacheId,
                                 translation = translation,
                                 bookId = bookId,
-                                chapter = selectedChapter,
+                                chapter = chapter,
                                 versesJson = response
                             )
                             insertCachedChapter(newCachedChapter)
@@ -210,8 +233,22 @@ fun BibleReader(
     }
 
     LaunchedEffect(translation, currentState, selectedBookIndex, selectedChapter) {
-        if (currentState == BibleReaderState.READER) {
+        val selectedChapterKey = "$translation-${books[selectedBookIndex].id}-$selectedChapter"
+        if (currentState == BibleReaderState.READER && displayedChapterKey != selectedChapterKey) {
             fetchChapter()
+        }
+    }
+
+    val canDismissChapterPicker =
+        currentState != BibleReaderState.READER &&
+            returnToBookIndex != null &&
+            returnToChapter != null
+
+    BackHandler(enabled = currentState == BibleReaderState.CHAPTERS || canDismissChapterPicker) {
+        if (canDismissChapterPicker) {
+            dismissChapterPicker()
+        } else {
+            currentState = BibleReaderState.BOOKS
         }
     }
 
@@ -222,7 +259,7 @@ fun BibleReader(
                     BibleReaderState.BOOKS -> Text("Bible Reader")
                     BibleReaderState.CHAPTERS -> Text(books[selectedBookIndex].name)
                     BibleReaderState.READER -> {
-                        TextButton(onClick = { currentState = BibleReaderState.CHAPTERS }) {
+                        TextButton(onClick = { openChapterPicker() }) {
                             Text(
                                 "${books[selectedBookIndex].name} $selectedChapter",
                                 style = MaterialTheme.typography.titleMedium,
@@ -238,15 +275,30 @@ fun BibleReader(
                     IconButton(onClick = {
                         when (currentState) {
                             BibleReaderState.CHAPTERS -> currentState = BibleReaderState.BOOKS
-                            BibleReaderState.READER -> currentState = BibleReaderState.CHAPTERS
+                            BibleReaderState.READER -> openChapterPicker()
                             BibleReaderState.BOOKS -> Unit
                         }
                     }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = when (currentState) {
+                                BibleReaderState.CHAPTERS -> "Choose book"
+                                BibleReaderState.READER -> "Choose chapter"
+                                BibleReaderState.BOOKS -> null
+                            }
+                        )
                     }
                 }
             },
             actions = {
+                if (canDismissChapterPicker) {
+                    IconButton(onClick = { dismissChapterPicker() }) {
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = "Return to ${books[returnToBookIndex!!].name} $returnToChapter"
+                        )
+                    }
+                }
                 if (currentState == BibleReaderState.READER) {
                     IconButton(
                         onClick = {
@@ -351,6 +403,8 @@ fun BibleReader(
                                     .background(MaterialTheme.colorScheme.primaryContainer)
                                     .clickable {
                                         selectedChapter = chap
+                                        returnToBookIndex = null
+                                        returnToChapter = null
                                         currentState = BibleReaderState.READER
                                     }
                             ) {
