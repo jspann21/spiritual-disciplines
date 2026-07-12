@@ -71,25 +71,27 @@ fun BibleScreen(viewModel: MainViewModel) {
     val todaysReading = remember(currentPlan, dayOfYear) { currentPlan.getReadingForDay(dayOfYear) }
     
     // Parse the bibleProgress string (e.g. "0,2")
-    val completedIndexes = todayRecord.bibleProgress.split(",").filter { it.isNotEmpty() }.mapNotNull { it.toIntOrNull() }.toSet()
+    val completedIndexes = remember(todayRecord.bibleProgress) {
+        todayRecord.bibleProgress.split(",").mapNotNullTo(mutableSetOf()) { it.toIntOrNull() }
+    }
     
     val allCompleted = todaysReading.passages.isNotEmpty() && todaysReading.passages.indices.all { completedIndexes.contains(it) }
 
-    val isBehind = remember(allRecords, startDateEpoch, dayOfYear) {
+    val nextPlanDay = remember(allRecords, startDateEpoch) {
         val todayStr = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
-        val pastRecords = allRecords.filter { it.date < todayStr && (it.readBible || it.bibleProgress.isNotEmpty()) }
-        val lastRecord = pastRecords.maxByOrNull { it.date }
-        
-        val expectedNextDay = if (lastRecord != null) {
+        val lastRecord = allRecords.firstOrNull {
+            it.date < todayStr && (it.readBible || it.bibleProgress.isNotEmpty())
+        }
+
+        if (lastRecord != null) {
             val lastDate = LocalDate.parse(lastRecord.date, DateTimeFormatter.ISO_LOCAL_DATE)
             val expectedPlanDayOnLastDate = java.time.temporal.ChronoUnit.DAYS.between(LocalDate.ofEpochDay(startDateEpoch), lastDate).toInt() + 1
             if (lastRecord.readBible) expectedPlanDayOnLastDate + 1 else expectedPlanDayOnLastDate
         } else {
             1
         }
-        
-        expectedNextDay < dayOfYear
     }
+    val isBehind = nextPlanDay < dayOfYear
 
     // Synchronize the master `readBible` boolean if all passages are checked off
     LaunchedEffect(allCompleted, todayRecord.readBible) {
@@ -100,7 +102,7 @@ fun BibleScreen(viewModel: MainViewModel) {
         }
     }
 
-    val tabs = listOf("Daily Plan", "Read Bible")
+    val tabs = remember { listOf("Daily Plan", "Read Bible") }
 
     fun openReader(passage: String) {
         val parts = passage.split(" ")
@@ -151,18 +153,6 @@ fun BibleScreen(viewModel: MainViewModel) {
                         TextButton(
                             onClick = {
                                 haptics.confirm()
-                                val todayStr = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
-                                val pastRecords = allRecords.filter { it.date < todayStr && (it.readBible || it.bibleProgress.isNotEmpty()) }
-                                val lastRecord = pastRecords.maxByOrNull { it.date }
-                                
-                                val nextPlanDay = if (lastRecord != null) {
-                                    val lastDate = LocalDate.parse(lastRecord.date, DateTimeFormatter.ISO_LOCAL_DATE)
-                                    val expectedPlanDayOnLastDate = java.time.temporal.ChronoUnit.DAYS.between(LocalDate.ofEpochDay(startDateEpoch), lastDate).toInt() + 1
-                                    if (lastRecord.readBible) expectedPlanDayOnLastDate + 1 else expectedPlanDayOnLastDate
-                                } else {
-                                    1
-                                }
-                                
                                 val today = LocalDate.now()
                                 val newStartDate = today.minusDays((nextPlanDay - 1).toLong())
                                 viewModel.preferences.setReadingPlanStartDate(newStartDate.toEpochDay())

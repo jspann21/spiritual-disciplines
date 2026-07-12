@@ -79,8 +79,15 @@ fun PrayerScreen(viewModel: MainViewModel) {
     var editingRequest by remember { mutableStateOf<PrayerRequest?>(null) }
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     
-    val filteredRequests = requests.filter { 
-        if (selectedTabIndex == 0) !it.isArchived else it.isArchived 
+    val filteredRequests = remember(requests, selectedTabIndex) {
+        requests.filter {
+            if (selectedTabIndex == 0) !it.isArchived else it.isArchived
+        }
+    }
+    val unprayedRequests = remember(filteredRequests, viewModel.todayDateString) {
+        filteredRequests.filter {
+            !it.isAnswered && it.lastPrayedDate != viewModel.todayDateString
+        }
     }
 
     var sessionRequests by remember { mutableStateOf<List<PrayerRequest>?>(null) }
@@ -123,7 +130,6 @@ fun PrayerScreen(viewModel: MainViewModel) {
                 )
             }
             
-            val unprayedRequests = filteredRequests.filter { !it.isAnswered && it.lastPrayedDate != viewModel.todayDateString }
             if (selectedTabIndex == 0 && unprayedRequests.isNotEmpty()) {
                 Button(
                     shapes = ButtonDefaults.shapes(),
@@ -145,8 +151,8 @@ fun PrayerScreen(viewModel: MainViewModel) {
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(filteredRequests) { req ->
-                    var menuExpanded by remember { mutableStateOf(false) }
+                items(filteredRequests, key = { it.id }) { req ->
+                    var menuExpanded by remember(req.id) { mutableStateOf(false) }
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {

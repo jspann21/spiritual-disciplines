@@ -342,7 +342,7 @@ fun PracticeView(
 ) {
     val haptics = rememberExpressiveHaptics()
     val today = viewModel.todayDateString
-    val verseIds = verses.map { it.id }
+    val verseIds = remember(verses) { verses.map { it.id } }
     val sessionIds = remember(selectedVerseId, verseIds) {
         if (selectedVerseId != null) {
             listOfNotNull(selectedVerseId.takeIf { id -> verses.any { it.id == id } })
