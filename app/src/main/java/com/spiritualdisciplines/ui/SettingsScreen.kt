@@ -58,7 +58,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.spiritualdisciplines.viewmodel.MainViewModel
@@ -109,7 +108,7 @@ fun SettingsScreen(viewModel: MainViewModel, onBack: () -> Unit) {
 
             // Theme Selection
             Column(modifier = Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Text("Theme", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                Text("Theme", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -119,25 +118,51 @@ fun SettingsScreen(viewModel: MainViewModel, onBack: () -> Unit) {
                     ThemeOption("dark", "Dark", themeMode) { viewModel.preferences.setThemeMode(it) }
                 }
 
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Bible Text Font", style = MaterialTheme.typography.bodyLarge)
-                    Text(
-                        "Choose the typeface used for Scripture throughout the app.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                val bibleFonts = remember {
+                    listOf(
+                        Triple("literata", "Literata", Literata),
+                        Triple("noto_serif", "Noto Serif", NotoSerif),
+                        Triple("merriweather", "Merriweather", Merriweather),
+                        Triple("atkinson_hyperlegible", "Atkinson Hyperlegible", AtkinsonHyperlegible)
                     )
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        BibleFontOption("literata", "Literata", Literata, bibleFont) {
-                            viewModel.preferences.setBibleFont(it)
-                        }
-                        BibleFontOption("noto_serif", "Noto Serif", NotoSerif, bibleFont) {
-                            viewModel.preferences.setBibleFont(it)
-                        }
-                        BibleFontOption("merriweather", "Merriweather", Merriweather, bibleFont) {
-                            viewModel.preferences.setBibleFont(it)
-                        }
-                        BibleFontOption("atkinson_hyperlegible", "Atkinson Hyperlegible", AtkinsonHyperlegible, bibleFont) {
-                            viewModel.preferences.setBibleFont(it)
+                }
+                val selectedBibleFont = bibleFonts.find { it.first == bibleFont } ?: bibleFonts.first()
+                var fontMenuExpanded by remember { mutableStateOf(false) }
+
+                ExposedDropdownMenuBox(
+                    expanded = fontMenuExpanded,
+                    onExpandedChange = { fontMenuExpanded = !fontMenuExpanded }
+                ) {
+                    OutlinedTextField(
+                        value = selectedBibleFont.second,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Bible Text Font") },
+                        supportingText = { Text("Typeface used for Scripture throughout the app") },
+                        textStyle = MaterialTheme.typography.bodyLarge.copy(fontFamily = selectedBibleFont.third),
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = fontMenuExpanded) },
+                        modifier = Modifier
+                            .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                            .fillMaxWidth()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = fontMenuExpanded,
+                        onDismissRequest = { fontMenuExpanded = false }
+                    ) {
+                        bibleFonts.forEach { option ->
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        option.second,
+                                        style = MaterialTheme.typography.bodyLarge.copy(fontFamily = option.third),
+                                        fontWeight = if (option.first == bibleFont) FontWeight.SemiBold else FontWeight.Normal
+                                    )
+                                },
+                                onClick = {
+                                    viewModel.preferences.setBibleFont(option.first)
+                                    fontMenuExpanded = false
+                                }
+                            )
                         }
                     }
                 }
@@ -198,7 +223,7 @@ fun SettingsScreen(viewModel: MainViewModel, onBack: () -> Unit) {
 
             // Bible Translation
             Column(modifier = Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("Bible Translation", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                Text("Bible Translation", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
                 var expanded by remember { mutableStateOf(false) }
                 val translations = listOf("ESV", "NIV", "KJV", "NKJV", "NLT", "NASB", "LSB")
                 
@@ -234,7 +259,7 @@ fun SettingsScreen(viewModel: MainViewModel, onBack: () -> Unit) {
 
             // Reading Plan Selection
             Column(modifier = Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("Reading Plan", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                Text("Reading Plan", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
                 var expandedPlan by remember { mutableStateOf(false) }
                 val plans = com.spiritualdisciplines.data.ReadingPlanRepository.plans
                 val selectedPlan = plans.find { it.id == readingPlanId } ?: plans.first()
@@ -265,7 +290,7 @@ fun SettingsScreen(viewModel: MainViewModel, onBack: () -> Unit) {
                         }
                     }
                 }
-                Text(selectedPlan.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(selectedPlan.description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
                 Spacer(modifier = Modifier.height(4.dp))
                 
@@ -321,8 +346,6 @@ fun SettingsScreen(viewModel: MainViewModel, onBack: () -> Unit) {
                 )
             }
 
-            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
-
             // Show Streak
             Row(
                 modifier = Modifier
@@ -333,8 +356,8 @@ fun SettingsScreen(viewModel: MainViewModel, onBack: () -> Unit) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Streak Counter", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                    Text("Show your daily streak on the dashboard", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Streak Counter", style = MaterialTheme.typography.bodyLarge)
+                    Text("Show your daily streak on the dashboard", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Switch(
                     checked = showStreak,
@@ -346,7 +369,7 @@ fun SettingsScreen(viewModel: MainViewModel, onBack: () -> Unit) {
 
             // Dashboard Items
             Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-                Text("Dashboard Items", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                Text("Dashboard Items", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
                 Spacer(modifier = Modifier.height(8.dp))
                 
                 val showReadBible by viewModel.showReadBible.collectAsStateWithLifecycle()
@@ -417,8 +440,8 @@ fun SettingsScreen(viewModel: MainViewModel, onBack: () -> Unit) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Daily Reminders", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                        Text("Get notified to complete your daily spiritual disciplines", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("Daily Reminders", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
+                        Text("Get notified to complete your daily spiritual disciplines", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Switch(
                         checked = notificationsEnabled,
@@ -473,7 +496,7 @@ fun SettingsScreen(viewModel: MainViewModel, onBack: () -> Unit) {
             // Data & Cache
             var showClearCacheDialog by remember { mutableStateOf(false) }
             Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-                Text("Data & Storage", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                Text("Data & Storage", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
                 Spacer(modifier = Modifier.height(8.dp))
                 
                 Row(
@@ -488,7 +511,7 @@ fun SettingsScreen(viewModel: MainViewModel, onBack: () -> Unit) {
                         Text("Clear Cache", style = MaterialTheme.typography.bodyLarge)
                         Text(
                             "Free up space by clearing downloaded verses and chapters",
-                            style = MaterialTheme.typography.bodySmall,
+                            style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -562,7 +585,7 @@ fun ToggleItem(title: String, subtitle: String, checked: Boolean, onCheckedChang
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(title, style = MaterialTheme.typography.bodyLarge)
-            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Switch(
             checked = checked,
@@ -585,39 +608,11 @@ fun RowScope.ThemeOption(mode: String, label: String, selectedMode: String, onSe
         Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(12.dp)) {
             Text(
                 text = label,
+                style = MaterialTheme.typography.labelLarge,
                 color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
-                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium
             )
         }
-    }
-}
-
-@Composable
-private fun BibleFontOption(
-    value: String,
-    label: String,
-    fontFamily: FontFamily,
-    selectedValue: String,
-    onSelect: (String) -> Unit
-) {
-    val isSelected = value == selectedValue
-    Surface(
-        onClick = { onSelect(value) },
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
-        border = BorderStroke(
-            1.dp,
-            if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
-        )
-    ) {
-        Text(
-            text = label,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-            style = MaterialTheme.typography.titleMedium.copy(fontFamily = fontFamily),
-            color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
-            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-        )
     }
 }
 
