@@ -28,7 +28,12 @@ class AppRepository(private val appDao: AppDao) {
     suspend fun clearAllCachedVerses() = appDao.clearAllCachedVerses()
 
     suspend fun getCachedChapter(id: String): CachedChapter? = appDao.getCachedChapter(id)
-    suspend fun insertCachedChapter(chapter: CachedChapter) = appDao.insertCachedChapter(chapter)
+    suspend fun insertCachedChapter(chapter: CachedChapter) =
+        appDao.insertCachedChapterBounded(chapter, MAX_CACHED_CHAPTERS)
     suspend fun clearAllCachedChapters() = appDao.clearAllCachedChapters()
     fun getCacheSizeBytes(): Flow<Long> = appDao.getCacheSizeBytes()
+
+    private companion object {
+        const val MAX_CACHED_CHAPTERS = 50
+    }
 }

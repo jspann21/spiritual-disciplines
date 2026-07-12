@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -73,6 +74,22 @@ interface AppDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertCachedChapter(chapter: CachedChapter)
+
+    @Query(
+        """
+        DELETE FROM cached_chapters
+        WHERE rowid NOT IN (
+            SELECT rowid FROM cached_chapters ORDER BY rowid DESC LIMIT :maxEntries
+        )
+        """
+    )
+    suspend fun trimCachedChapters(maxEntries: Int)
+
+    @Transaction
+    suspend fun insertCachedChapterBounded(chapter: CachedChapter, maxEntries: Int) {
+        insertCachedChapter(chapter)
+        trimCachedChapters(maxEntries)
+    }
 
     @Query("DELETE FROM cached_chapters")
     suspend fun clearAllCachedChapters()
