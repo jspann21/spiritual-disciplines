@@ -57,13 +57,16 @@ import androidx.core.text.HtmlCompat
 import com.spiritualdisciplines.data.BibleBooks
 import com.spiritualdisciplines.data.CachedChapter
 import com.spiritualdisciplines.ui.theme.LocalBibleFontFamily
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.concurrent.atomic.AtomicReference
 
 enum class BibleReaderState {
     BOOKS, CHAPTERS, READER
@@ -151,6 +154,7 @@ fun BibleReader(
     var isLoading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var displayedChapterKey by remember { mutableStateOf<String?>(null) }
+    val chapterLoadJob = remember { AtomicReference<Job?>(null) }
 
     fun fetchChapter() {
         val bookId = books[selectedBookIndex].id
@@ -161,7 +165,8 @@ fun BibleReader(
         error = null
         chapterContent = emptyList()
         displayedChapterKey = cacheId
-        coroutineScope.launch {
+        chapterLoadJob.getAndSet(null)?.cancel()
+        chapterLoadJob.set(coroutineScope.launch {
             withContext(Dispatchers.IO) {
                 try {
                     val cachedChapter = getCachedChapter(cacheId)
@@ -225,6 +230,8 @@ fun BibleReader(
                             connection.disconnect()
                         }
                     }
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     withContext(Dispatchers.Main) {
                         error = "Could not load chapter. Please check your internet connection."
@@ -232,7 +239,7 @@ fun BibleReader(
                     }
                 }
             }
-        }
+        })
     }
 
     LaunchedEffect(translation, currentState, selectedBookIndex, selectedChapter) {
