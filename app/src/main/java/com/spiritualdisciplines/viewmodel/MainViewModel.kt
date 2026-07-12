@@ -10,6 +10,7 @@ import com.spiritualdisciplines.data.CachedVerse
 import com.spiritualdisciplines.data.DailyRecord
 import com.spiritualdisciplines.data.JournalEntry
 import com.spiritualdisciplines.data.MemoryVerse
+import com.spiritualdisciplines.data.MemoryReviewScheduler
 import com.spiritualdisciplines.data.PrayerRequest
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -18,8 +19,6 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
-import kotlin.math.max
-import kotlin.math.roundToInt
 
 class MainViewModel(private val repository: AppRepository, val preferences: AppPreferences) : ViewModel() {
 
@@ -125,26 +124,23 @@ class MainViewModel(private val repository: AppRepository, val preferences: AppP
         viewModelScope.launch {
             val verse = memoryVerses.value.find { it.id == verseId } ?: return@launch
             
-            val easeFactor = max(
-                1.3f,
-                verse.easeFactor + (0.1f - (5 - quality) * (0.08f + (5 - quality) * 0.02f))
-            )
+            val schedule = MemoryReviewScheduler.schedule(verse, quality)
             
-            val interval = when {
-                quality < 3 -> 1
-                verse.interval == 1 -> 6
-                else -> (verse.interval * easeFactor).roundToInt()
-            }
-            
-            val nextReviewDate = LocalDate.now().plusDays(interval.toLong()).format(DateTimeFormatter.ISO_LOCAL_DATE)
+            val nextReviewDate = LocalDate.now().plusDays(schedule.intervalDays.toLong()).format(DateTimeFormatter.ISO_LOCAL_DATE)
             
             val updatedVerse = verse.copy(
                 lastReviewedDate = todayDateString,
-                interval = interval,
-                easeFactor = easeFactor,
+                interval = schedule.intervalDays,
+                easeFactor = schedule.easeFactor,
                 nextReviewDate = nextReviewDate
             )
             repository.insertMemoryVerse(updatedVerse)
+        }
+    }
+
+    fun restoreVerseReview(verse: MemoryVerse) {
+        viewModelScope.launch {
+            repository.insertMemoryVerse(verse)
         }
     }
 

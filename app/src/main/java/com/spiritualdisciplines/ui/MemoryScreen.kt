@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -24,6 +25,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -33,8 +38,10 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -42,6 +49,7 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -49,17 +57,21 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.spiritualdisciplines.data.BibleBooks
 import com.spiritualdisciplines.data.BibleVerseCounts
 import com.spiritualdisciplines.data.MemoryVerse
+import com.spiritualdisciplines.data.MemoryReviewScheduler
 import com.spiritualdisciplines.viewmodel.MainViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -68,6 +80,8 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -76,79 +90,65 @@ fun MemoryScreen(viewModel: MainViewModel) {
     val translation by viewModel.bibleTranslation.collectAsStateWithLifecycle()
     var showDialog by remember { mutableStateOf(false) }
     var selectedTab by remember { mutableIntStateOf(0) }
-    val tabs = listOf("Library", "Practice")
+    var practiceVerseId by remember { mutableStateOf<Int?>(null) }
+    val dueCount = verses.count { it.nextReviewDate == null || it.nextReviewDate <= viewModel.todayDateString }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = { 
             Column {
-                TopAppBar(title = { Text("Scripture Memory") })
+                TopAppBar(
+                    title = { Text("Scripture Memory") },
+                    actions = {
+                        if (selectedTab == 0) {
+                            IconButton(onClick = { showDialog = true }) {
+                                Icon(Icons.Default.Add, contentDescription = "Add verse")
+                            }
+                        }
+                    }
+                )
                 TabRow(selectedTabIndex = selectedTab) {
-                    tabs.forEachIndexed { index, title ->
+                    listOf("Library", "Practice").forEachIndexed { index, title ->
                         Tab(
                             selected = selectedTab == index,
-                            onClick = { selectedTab = index },
+                            onClick = {
+                                selectedTab = index
+                                if (index == 0) practiceVerseId = null
+                            },
                             text = { Text(title) }
                         )
                     }
                 }
             }
         },
-        floatingActionButton = {
-            if (selectedTab == 0) {
-                FloatingActionButton(onClick = { showDialog = true }) {
-                    Icon(Icons.Default.Add, contentDescription = "Add Verse")
-                }
-            }
-        }
     ) { padding ->
         Box(modifier = Modifier.padding(padding).fillMaxSize()) {
             if (selectedTab == 0) {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(verses) { verse ->
-                        var isHidden by remember { mutableStateOf(true) }
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                        ) {
-                            Column(modifier = Modifier.padding(16.dp)) {
-                                Text(verse.reference, style = MaterialTheme.typography.titleMedium)
-                                Spacer(modifier = Modifier.height(8.dp))
-                                if (isHidden) {
-                                    Button(onClick = { isHidden = false }) {
-                                        Text("Reveal Verse")
-                                    }
-                                } else {
-                                    Text(
-                                        verse.text,
-                                        style = MaterialTheme.typography.bodyLarge.copy(fontFamily = LocalBibleFontFamily.current)
-                                    )
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    Button(onClick = { isHidden = true }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)) {
-                                        Text("Hide")
-                                    }
-                                }
-                                
-                                Spacer(modifier = Modifier.height(8.dp))
-                                val isReviewedToday = verse.lastReviewedDate == viewModel.todayDateString
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Checkbox(checked = isReviewedToday, onCheckedChange = { if(it) viewModel.markVerseReviewed(verse.id) })
-                                    Text("Reviewed Today")
-                                    Spacer(modifier = Modifier.weight(1f))
-                                    IconButton(onClick = { viewModel.deleteMemoryVerse(verse.id) }) {
-                                        Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+                MemoryLibrary(
+                    verses = verses,
+                    dueCount = dueCount,
+                    today = viewModel.todayDateString,
+                    onPracticeDue = {
+                        practiceVerseId = null
+                        selectedTab = 1
+                    },
+                    onPracticeVerse = { id ->
+                        practiceVerseId = id
+                        selectedTab = 1
+                    },
+                    onDelete = viewModel::deleteMemoryVerse,
+                    onAdd = { showDialog = true }
+                )
             } else {
-                PracticeView(viewModel, verses)
+                PracticeView(
+                    viewModel = viewModel,
+                    verses = verses,
+                    selectedVerseId = practiceVerseId,
+                    onBackToLibrary = {
+                        practiceVerseId = null
+                        selectedTab = 0
+                    }
+                )
             }
         }
 
@@ -163,6 +163,120 @@ fun MemoryScreen(viewModel: MainViewModel) {
             )
         }
     }
+}
+
+@Composable
+private fun MemoryLibrary(
+    verses: List<MemoryVerse>,
+    dueCount: Int,
+    today: String,
+    onPracticeDue: () -> Unit,
+    onPracticeVerse: (Int) -> Unit,
+    onDelete: (Int) -> Unit,
+    onAdd: () -> Unit
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                shape = RoundedCornerShape(20.dp)
+            ) {
+                Column(Modifier.padding(20.dp)) {
+                    Text(
+                        if (dueCount > 0) "$dueCount ${if (dueCount == 1) "verse" else "verses"} ready" else "You're caught up",
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        if (dueCount > 0) "A short review now will strengthen what you remember."
+                        else "Practice any verse below, or come back when the next one is due.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    if (dueCount > 0) {
+                        Spacer(Modifier.height(16.dp))
+                        Button(onClick = onPracticeDue) {
+                            Icon(Icons.Default.PlayArrow, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text("Start review")
+                        }
+                    }
+                }
+            }
+        }
+
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Your verses", style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.weight(1f))
+                Text("${verses.size} total", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+
+        if (verses.isEmpty()) {
+            item {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text("Begin with one verse", style = MaterialTheme.typography.titleMedium)
+                    Spacer(Modifier.height(6.dp))
+                    Text("Choose a passage you want to carry with you.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.height(16.dp))
+                    Button(onClick = onAdd) { Text("Add a verse") }
+                }
+            }
+        } else {
+            items(verses, key = { it.id }) { verse ->
+                Card(
+                    onClick = { onPracticeVerse(verse.id) },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(start = 16.dp, top = 14.dp, bottom = 14.dp, end = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text(verse.reference, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                verse.text,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                                style = MaterialTheme.typography.bodyMedium.copy(fontFamily = LocalBibleFontFamily.current),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                reviewStatus(verse, today),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = if (verse.nextReviewDate == null || verse.nextReviewDate <= today) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        IconButton(onClick = { onDelete(verse.id) }) {
+                            Icon(Icons.Default.Delete, contentDescription = "Delete ${verse.reference}", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun reviewStatus(verse: MemoryVerse, today: String): String {
+    val next = verse.nextReviewDate ?: return "New · ready to practice"
+    if (next <= today) return "Due today"
+    val days = java.time.temporal.ChronoUnit.DAYS.between(LocalDate.parse(today), LocalDate.parse(next))
+    return if (days == 1L) "Next review tomorrow" else "Next review in $days days"
 }
 
 fun toFirstLetter(text: String): String {
@@ -211,133 +325,289 @@ fun toFillInTheBlanks(text: String, hidePercentage: Float = 0.4f): String {
     }.joinToString(" ")
 }
 
+private data class LastMemoryReview(val verse: MemoryVerse, val days: Int)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PracticeView(viewModel: MainViewModel, verses: List<MemoryVerse>) {
+fun PracticeView(
+    viewModel: MainViewModel,
+    verses: List<MemoryVerse>,
+    selectedVerseId: Int? = null,
+    onBackToLibrary: () -> Unit = {}
+) {
     val today = viewModel.todayDateString
-    val dueVerses = verses.filter { 
-        it.nextReviewDate == null || it.nextReviewDate <= today 
+    val verseIds = verses.map { it.id }
+    val sessionIds = remember(selectedVerseId, verseIds) {
+        if (selectedVerseId != null) {
+            listOfNotNull(selectedVerseId.takeIf { id -> verses.any { it.id == id } })
+        } else {
+            verses.filter { it.nextReviewDate == null || it.nextReviewDate <= today }.map { it.id }
+        }
     }
-    
-    var completedVerseIds by remember { mutableStateOf(setOf<Int>()) }
-    val remainingVerses = dueVerses.filter { it.id !in completedVerseIds }
-    
-    if (remainingVerses.isEmpty()) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            val text = if (dueVerses.isEmpty()) "You're all caught up for today!" else "Review complete!"
-            Text(text, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    var currentIndex by remember(selectedVerseId, verseIds) { mutableIntStateOf(0) }
+    var mode by remember(selectedVerseId, verseIds) { mutableStateOf("Study") }
+    var showAnswer by remember(selectedVerseId, verseIds) { mutableStateOf(false) }
+    var showRatingDialog by remember(selectedVerseId, verseIds) { mutableStateOf(false) }
+    var blanksSeed by remember(selectedVerseId, verseIds) { mutableIntStateOf(0) }
+    var lastReview by remember(selectedVerseId, verseIds) { mutableStateOf<LastMemoryReview?>(null) }
+
+    fun undoLastReview() {
+        val review = lastReview ?: return
+        viewModel.restoreVerseReview(review.verse)
+        currentIndex = (currentIndex - 1).coerceAtLeast(0)
+        showAnswer = true
+        showRatingDialog = false
+        lastReview = null
+    }
+
+    if (sessionIds.isEmpty()) {
+        PracticeEmptyState(onBackToLibrary)
+        return
+    }
+
+    if (currentIndex >= sessionIds.size) {
+        Column(
+            modifier = Modifier.fillMaxSize().padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Surface(
+                color = MaterialTheme.colorScheme.primaryContainer,
+                shape = RoundedCornerShape(999.dp),
+                modifier = Modifier.size(64.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(32.dp))
+                }
+            }
+            Spacer(Modifier.height(20.dp))
+            Text("Review complete", style = MaterialTheme.typography.headlineMedium)
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "You practiced ${sessionIds.size} ${if (sessionIds.size == 1) "verse" else "verses"}.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            lastReview?.let { review ->
+                Spacer(Modifier.height(20.dp))
+                Text("${review.verse.reference} · ${intervalLabel(review.days)}", style = MaterialTheme.typography.bodyMedium)
+                TextButton(onClick = ::undoLastReview) { Text("Undo last rating") }
+            }
+            Spacer(Modifier.height(24.dp))
+            Button(onClick = onBackToLibrary, modifier = Modifier.fillMaxWidth()) { Text("Return to library") }
+            TextButton(
+                onClick = {
+                    currentIndex = 0
+                    mode = "Study"
+                    showAnswer = false
+                    showRatingDialog = false
+                    lastReview = null
+                }
+            ) {
+                Icon(Icons.Default.Refresh, contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                Text("Practice these again")
+            }
         }
         return
     }
-    
-    val currentVerse = remainingVerses.first()
-    var mode by remember { mutableStateOf("Read") }
-    val modes = listOf("Read", "First-Letter", "Blanks")
-    
-    val displayVerseText = remember(currentVerse.id, mode) {
-        when (mode) {
-            "First-Letter" -> toFirstLetter(currentVerse.text)
-            "Blanks" -> toFillInTheBlanks(currentVerse.text)
-            else -> currentVerse.text
+
+    val currentVerse = verses.firstOrNull { it.id == sessionIds[currentIndex] } ?: return
+    val displayVerseText = remember(currentVerse.id, mode, showAnswer, blanksSeed) {
+        when {
+            showAnswer || mode == "Study" -> currentVerse.text
+            mode == "First letters" -> toFirstLetter(currentVerse.text)
+            mode == "Blanks" -> toFillInTheBlanks(currentVerse.text)
+            else -> "Recite the verse aloud, then check your answer."
         }
     }
-    
-    Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        val total = dueVerses.size
-        val current = total - remainingVerses.size + 1
-        Text("Verse $current of $total", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Spacer(modifier = Modifier.height(16.dp))
-        
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            modes.forEach { m ->
+
+    Column(modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 12.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onBackToLibrary) {
+                Icon(Icons.Default.ArrowBack, contentDescription = "Back to library")
+            }
+            Text(
+                if (selectedVerseId == null) "Review ${currentIndex + 1} of ${sessionIds.size}" else "Free practice",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.weight(1f))
+            if (selectedVerseId == null) {
+                Text("${sessionIds.size - currentIndex} left", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+
+        lastReview?.let { review ->
+            Surface(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Row(Modifier.padding(start = 14.dp, end = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("${review.verse.reference} · ${intervalLabel(review.days)}", style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+                    TextButton(onClick = ::undoLastReview) { Text("Undo") }
+                }
+            }
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            listOf("Study", "First letters", "Blanks").forEach { item ->
                 FilterChip(
-                    selected = mode == m,
-                    onClick = { mode = m },
-                    label = { Text(m) }
+                    selected = mode == item,
+                    onClick = {
+                        mode = item
+                        showAnswer = false
+                        showRatingDialog = false
+                        if (item == "Blanks") blanksSeed++
+                    },
+                    label = { Text(item) }
                 )
             }
         }
-        Spacer(modifier = Modifier.height(24.dp))
-        
+        Spacer(Modifier.height(12.dp))
+
         Card(
             modifier = Modifier.fillMaxWidth().weight(1f),
-            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            shape = RoundedCornerShape(20.dp)
         ) {
             Column(
-                modifier = Modifier.padding(24.dp).verticalScroll(rememberScrollState()),
-                horizontalAlignment = Alignment.CenterHorizontally
+                modifier = Modifier.fillMaxSize().padding(24.dp).verticalScroll(rememberScrollState()),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
             ) {
+                Text(currentVerse.reference, style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary, textAlign = TextAlign.Center)
+                Spacer(Modifier.height(24.dp))
                 Text(
-                    text = currentVerse.reference, 
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                    textAlign = TextAlign.Center
-                )
-                Spacer(modifier = Modifier.height(24.dp))
-                Text(
-                    text = displayVerseText, 
+                    displayVerseText,
                     style = MaterialTheme.typography.headlineSmall,
                     fontFamily = LocalBibleFontFamily.current,
                     textAlign = TextAlign.Center,
-                    lineHeight = 32.sp
+                    lineHeight = 34.sp
                 )
             }
         }
-        
-        Spacer(modifier = Modifier.height(24.dp))
-        
-        Text("How well did you remember?", style = MaterialTheme.typography.titleMedium)
-        Spacer(modifier = Modifier.height(16.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
-            Button(
-                onClick = { 
-                    viewModel.updateVerseReview(currentVerse.id, 1) 
-                    completedVerseIds = completedVerseIds + currentVerse.id
-                    mode = "Read"
-                },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.errorContainer,
-                    contentColor = MaterialTheme.colorScheme.onErrorContainer
-                )
-            ) {
-                Text("Hard")
+        Spacer(Modifier.height(14.dp))
+
+        when {
+            mode == "Study" -> {
+                Button(
+                    onClick = {
+                        mode = "Recall"
+                        showAnswer = false
+                    },
+                    modifier = Modifier.fillMaxWidth().height(52.dp)
+                ) { Text("Try it from memory") }
             }
-            Button(
-                onClick = { 
-                    viewModel.updateVerseReview(currentVerse.id, 3) 
-                    completedVerseIds = completedVerseIds + currentVerse.id
-                    mode = "Read"
-                },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.secondary,
-                    contentColor = MaterialTheme.colorScheme.onSecondary
-                )
-            ) {
-                Text("Good")
+            !showAnswer -> {
+                Button(
+                    onClick = { showAnswer = true },
+                    modifier = Modifier.fillMaxWidth().height(52.dp)
+                ) { Text("Show answer") }
             }
-            Button(
-                onClick = { 
-                    viewModel.updateVerseReview(currentVerse.id, 5) 
-                    completedVerseIds = completedVerseIds + currentVerse.id
-                    mode = "Read"
-                },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
-                )
+            else -> {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = { showAnswer = false },
+                        modifier = Modifier.weight(1f).height(52.dp)
+                    ) { Text("Hide answer") }
+                    Button(
+                        onClick = { showRatingDialog = true },
+                        modifier = Modifier.weight(1f).height(52.dp)
+                    ) { Text("Finish review") }
+                }
+            }
+        }
+    }
+
+    if (showRatingDialog) {
+        Dialog(onDismissRequest = { showRatingDialog = false }) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                color = MaterialTheme.colorScheme.surface
             ) {
-                Text("Easy")
+                Column(Modifier.padding(20.dp)) {
+                    Text("Recall result", style = MaterialTheme.typography.titleLarge)
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "Before revealing, how much did you recall?",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(12.dp))
+
+                    listOf(
+                        1 to "Missed it",
+                        3 to "Mostly",
+                        5 to "Fully"
+                    ).forEachIndexed { index, (quality, label) ->
+                        val days = nextInterval(currentVerse, quality)
+                        Surface(
+                            onClick = {
+                                val snapshot = currentVerse
+                                viewModel.updateVerseReview(currentVerse.id, quality)
+                                lastReview = LastMemoryReview(snapshot, days)
+                                currentIndex++
+                                showAnswer = false
+                                showRatingDialog = false
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            color = MaterialTheme.colorScheme.surface,
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 13.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    label,
+                                    modifier = Modifier.weight(1f),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Text(intervalLabel(days), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                        if (index < 2) {
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        }
+                    }
+
+                    Spacer(Modifier.height(4.dp))
+                    TextButton(
+                        onClick = { showRatingDialog = false },
+                        modifier = Modifier.align(Alignment.End)
+                    ) { Text("Continue practicing") }
+                }
             }
         }
     }
 }
+
+@Composable
+private fun PracticeEmptyState(onBackToLibrary: () -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxSize().padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text("Nothing due today", style = MaterialTheme.typography.headlineMedium)
+        Spacer(Modifier.height(8.dp))
+        Text("Your next review will appear here when it's time.", color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+        Spacer(Modifier.height(20.dp))
+        Button(onClick = onBackToLibrary) { Text("Choose a verse to practice") }
+    }
+}
+
+private fun nextInterval(verse: MemoryVerse, quality: Int): Int {
+    return MemoryReviewScheduler.schedule(verse, quality).intervalDays
+}
+
+private fun intervalLabel(days: Int) = if (days == 1) "Tomorrow" else "In $days days"
 
 enum class PickerStage {
     BOOK, CHAPTER, VERSE, REVIEW
