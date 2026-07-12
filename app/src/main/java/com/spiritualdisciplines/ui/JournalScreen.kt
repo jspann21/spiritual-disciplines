@@ -81,7 +81,7 @@ private val reflectionPrompts = listOf(
 
 @Composable
 fun JournalScreen(viewModel: MainViewModel) {
-    val entries by viewModel.allJournalEntries.collectAsStateWithLifecycle()
+    val entries by viewModel.allJournalEntries.collectAsStateWithLifecycle(initialValue = emptyList())
     val readingPlanId by viewModel.readingPlanId.collectAsStateWithLifecycle()
     val readingPlanStartDate by viewModel.readingPlanStartDate.collectAsStateWithLifecycle()
     val today = remember { LocalDate.now() }

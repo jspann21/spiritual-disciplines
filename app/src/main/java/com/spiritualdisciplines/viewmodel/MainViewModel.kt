@@ -13,6 +13,7 @@ import com.spiritualdisciplines.data.MemoryVerse
 import com.spiritualdisciplines.data.MemoryReviewScheduler
 import com.spiritualdisciplines.data.PrayerRequest
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -55,8 +56,7 @@ class MainViewModel(private val repository: AppRepository, val preferences: AppP
     val memoryVerses: StateFlow<List<MemoryVerse>> = repository.getAllMemoryVerses()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val allJournalEntries: StateFlow<List<JournalEntry>> = repository.getAllJournalEntries()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val allJournalEntries: Flow<List<JournalEntry>> = repository.getAllJournalEntries()
 
     val cacheSizeBytes: StateFlow<Long> = repository.getCacheSizeBytes()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0L)
