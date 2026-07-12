@@ -14,6 +14,9 @@ class AppPreferences(context: Context) {
     private val _themeMode = MutableStateFlow(prefs.getString(KEY_THEME_MODE, DEFAULT_THEME_MODE) ?: DEFAULT_THEME_MODE)
     val themeMode: StateFlow<String> = _themeMode.asStateFlow()
 
+    private val _bibleFont = MutableStateFlow(prefs.getString(KEY_BIBLE_FONT, DEFAULT_BIBLE_FONT) ?: DEFAULT_BIBLE_FONT)
+    val bibleFont: StateFlow<String> = _bibleFont.asStateFlow()
+
     private val _bibleTranslation = MutableStateFlow(prefs.getString(KEY_BIBLE_TRANSLATION, DEFAULT_BIBLE_TRANSLATION) ?: DEFAULT_BIBLE_TRANSLATION)
     val bibleTranslation: StateFlow<String> = _bibleTranslation.asStateFlow()
 
@@ -61,6 +64,10 @@ class AppPreferences(context: Context) {
 
     fun setThemeMode(mode: String) {
         setString(KEY_THEME_MODE, mode, _themeMode)
+    }
+
+    fun setBibleFont(font: String) {
+        setString(KEY_BIBLE_FONT, font, _bibleFont)
     }
 
     fun setBibleTranslation(translation: String) {
@@ -140,6 +147,7 @@ class AppPreferences(context: Context) {
         const val PREFS_NAME = "app_settings"
 
         const val KEY_THEME_MODE = "theme_mode"
+        const val KEY_BIBLE_FONT = "bible_font"
         const val KEY_BIBLE_TRANSLATION = "bible_translation"
         const val KEY_READING_PLAN_ID = "reading_plan_id"
         const val KEY_READING_PLAN_START_DATE = "reading_plan_start_date"
@@ -157,6 +165,7 @@ class AppPreferences(context: Context) {
         const val KEY_ACCENT_COLOR = "accent_color"
 
         const val DEFAULT_THEME_MODE = "system"
+        const val DEFAULT_BIBLE_FONT = "literata"
         const val DEFAULT_BIBLE_TRANSLATION = "ESV"
         const val DEFAULT_READING_PLAN_ID = "mcheyne"
         const val DEFAULT_NOTIFICATION_HOUR = 8

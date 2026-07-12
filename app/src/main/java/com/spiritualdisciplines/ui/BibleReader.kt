@@ -54,6 +54,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.text.HtmlCompat
 import com.spiritualdisciplines.data.BibleBooks
 import com.spiritualdisciplines.data.CachedChapter
+import com.spiritualdisciplines.ui.theme.LocalBibleFontFamily
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -399,6 +400,7 @@ fun BibleReader(
                         else -> {
                             val scrollState = rememberScrollState()
                             val verseTextStyle = MaterialTheme.typography.bodyLarge.copy(
+                                fontFamily = LocalBibleFontFamily.current,
                                 fontSize = fontSize.sp.sp,
                                 lineHeight = (fontSize.sp + 8).sp
                             )

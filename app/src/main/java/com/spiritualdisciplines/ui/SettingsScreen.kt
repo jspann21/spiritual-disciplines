@@ -58,9 +58,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.spiritualdisciplines.viewmodel.MainViewModel
+import com.spiritualdisciplines.ui.theme.AtkinsonHyperlegible
+import com.spiritualdisciplines.ui.theme.Literata
+import com.spiritualdisciplines.ui.theme.Merriweather
+import com.spiritualdisciplines.ui.theme.NotoSerif
 import java.util.Locale
 import kotlin.math.atan2
 import kotlin.math.cos
@@ -70,6 +75,7 @@ import kotlin.math.sin
 @Composable
 fun SettingsScreen(viewModel: MainViewModel, onBack: () -> Unit) {
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
+    val bibleFont by viewModel.bibleFont.collectAsStateWithLifecycle()
     val bibleTranslation by viewModel.bibleTranslation.collectAsStateWithLifecycle()
     val readingPlanId by viewModel.readingPlanId.collectAsStateWithLifecycle()
     val showStreak by viewModel.showStreak.collectAsStateWithLifecycle()
@@ -111,6 +117,29 @@ fun SettingsScreen(viewModel: MainViewModel, onBack: () -> Unit) {
                     ThemeOption("system", "System", themeMode) { viewModel.preferences.setThemeMode(it) }
                     ThemeOption("light", "Light", themeMode) { viewModel.preferences.setThemeMode(it) }
                     ThemeOption("dark", "Dark", themeMode) { viewModel.preferences.setThemeMode(it) }
+                }
+
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Bible Text Font", style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        "Choose the typeface used for Scripture throughout the app.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        BibleFontOption("literata", "Literata", Literata, bibleFont) {
+                            viewModel.preferences.setBibleFont(it)
+                        }
+                        BibleFontOption("noto_serif", "Noto Serif", NotoSerif, bibleFont) {
+                            viewModel.preferences.setBibleFont(it)
+                        }
+                        BibleFontOption("merriweather", "Merriweather", Merriweather, bibleFont) {
+                            viewModel.preferences.setBibleFont(it)
+                        }
+                        BibleFontOption("atkinson_hyperlegible", "Atkinson Hyperlegible", AtkinsonHyperlegible, bibleFont) {
+                            viewModel.preferences.setBibleFont(it)
+                        }
+                    }
                 }
 
                 var showColorDialog by remember { mutableStateOf(false) }
@@ -560,6 +589,35 @@ fun RowScope.ThemeOption(mode: String, label: String, selectedMode: String, onSe
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
             )
         }
+    }
+}
+
+@Composable
+private fun BibleFontOption(
+    value: String,
+    label: String,
+    fontFamily: FontFamily,
+    selectedValue: String,
+    onSelect: (String) -> Unit
+) {
+    val isSelected = value == selectedValue
+    Surface(
+        onClick = { onSelect(value) },
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
+        border = BorderStroke(
+            1.dp,
+            if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+        )
+    ) {
+        Text(
+            text = label,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            style = MaterialTheme.typography.titleMedium.copy(fontFamily = fontFamily),
+            color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+        )
     }
 }
 

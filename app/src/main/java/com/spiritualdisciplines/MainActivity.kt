@@ -5,11 +5,14 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.spiritualdisciplines.ui.MainScreen
 import com.spiritualdisciplines.ui.theme.MyApplicationTheme
+import com.spiritualdisciplines.ui.theme.LocalBibleFontFamily
+import com.spiritualdisciplines.ui.theme.bibleFontFamily
 import com.spiritualdisciplines.viewmodel.MainViewModel
 import com.spiritualdisciplines.viewmodel.MainViewModelFactory
 import com.spiritualdisciplines.worker.VerseCacheWorker
@@ -34,9 +37,12 @@ class MainActivity : ComponentActivity() {
                 else -> isSystemInDarkTheme()
             }
             val accentColor = viewModel.accentColor.collectAsStateWithLifecycle()
+            val bibleFont = viewModel.bibleFont.collectAsStateWithLifecycle()
 
             MyApplicationTheme(darkTheme = darkTheme, accentColor = accentColor.value) {
-                MainScreen(viewModel)
+                CompositionLocalProvider(LocalBibleFontFamily provides bibleFontFamily(bibleFont.value)) {
+                    MainScreen(viewModel)
+                }
             }
         }
 

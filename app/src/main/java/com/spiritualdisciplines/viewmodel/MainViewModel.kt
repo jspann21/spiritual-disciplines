@@ -24,6 +24,7 @@ import kotlin.math.roundToInt
 class MainViewModel(private val repository: AppRepository, val preferences: AppPreferences) : ViewModel() {
 
     val themeMode: StateFlow<String> = preferences.themeMode
+    val bibleFont: StateFlow<String> = preferences.bibleFont
     val bibleTranslation: StateFlow<String> = preferences.bibleTranslation
     val readingPlanId: StateFlow<String> = preferences.readingPlanId
     val readingPlanStartDate: StateFlow<Long> = preferences.readingPlanStartDate

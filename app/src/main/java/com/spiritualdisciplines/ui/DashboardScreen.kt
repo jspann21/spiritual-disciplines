@@ -1,5 +1,7 @@
 package com.spiritualdisciplines.ui
 
+import com.spiritualdisciplines.ui.theme.LocalBibleFontFamily
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -294,6 +296,7 @@ fun DashboardScreen(viewModel: MainViewModel, onSettingsClick: () -> Unit) {
                         Text(
                             text = "“${votdText}”",
                             style = MaterialTheme.typography.bodyLarge.copy(
+                                fontFamily = LocalBibleFontFamily.current,
                                 fontStyle = FontStyle.Italic,
                                 lineHeight = 24.sp
                             ),

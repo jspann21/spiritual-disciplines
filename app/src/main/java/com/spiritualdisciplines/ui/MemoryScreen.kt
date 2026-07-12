@@ -1,5 +1,7 @@
 package com.spiritualdisciplines.ui
 
+import com.spiritualdisciplines.ui.theme.LocalBibleFontFamily
+
 import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -121,7 +123,10 @@ fun MemoryScreen(viewModel: MainViewModel) {
                                         Text("Reveal Verse")
                                     }
                                 } else {
-                                    Text(verse.text, style = MaterialTheme.typography.bodyLarge)
+                                    Text(
+                                        verse.text,
+                                        style = MaterialTheme.typography.bodyLarge.copy(fontFamily = LocalBibleFontFamily.current)
+                                    )
                                     Spacer(modifier = Modifier.height(8.dp))
                                     Button(onClick = { isHidden = true }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)) {
                                         Text("Hide")
@@ -276,6 +281,7 @@ fun PracticeView(viewModel: MainViewModel, verses: List<MemoryVerse>) {
                 Text(
                     text = displayVerseText, 
                     style = MaterialTheme.typography.headlineSmall,
+                    fontFamily = LocalBibleFontFamily.current,
                     textAlign = TextAlign.Center,
                     lineHeight = 32.sp
                 )
@@ -534,6 +540,7 @@ fun AddVerseDialog(translation: String, onDismiss: () -> Unit, onAdd: (String, S
                                         onValueChange = { fetchedText = it },
                                         modifier = Modifier.fillMaxWidth().heightIn(min = 150.dp),
                                         textStyle = MaterialTheme.typography.bodyLarge.copy(
+                                            fontFamily = LocalBibleFontFamily.current,
                                             color = MaterialTheme.colorScheme.onSurface
                                         ),
                                         cursorBrush = SolidColor(MaterialTheme.colorScheme.primary)
