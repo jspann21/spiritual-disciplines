@@ -6,7 +6,7 @@ plugins {
 
 android {
   namespace = "com.spiritualdisciplines"
-  compileSdk { version = release(36) { minorApiLevel = 1 } }
+  compileSdk = 37
 
   defaultConfig {
     applicationId = "com.spiritualdisciplines"

@@ -53,7 +53,9 @@ val bottomNavItems = listOf(
 @Composable
 fun MainScreen(viewModel: MainViewModel) {
     val navController = rememberNavController()
+    val haptics = rememberExpressiveHaptics()
     Scaffold(
+        modifier = Modifier.expressiveScrollFeedback(),
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         bottomBar = {
             NavigationBar {
@@ -75,6 +77,7 @@ fun MainScreen(viewModel: MainViewModel) {
                             selectedTextColor = MaterialTheme.colorScheme.primary
                         ),
                         onClick = {
+                            haptics.select()
                             if (screen.route == Screen.Dashboard.route) {
                                 navController.popBackStack(Screen.Dashboard.route, inclusive = false)
                             } else {

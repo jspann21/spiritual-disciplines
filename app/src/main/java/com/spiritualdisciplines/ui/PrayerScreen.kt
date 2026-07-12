@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package com.spiritualdisciplines.ui
 
 import androidx.compose.foundation.layout.Arrangement
@@ -39,7 +41,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
+import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -71,6 +73,7 @@ import kotlin.math.absoluteValue
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PrayerScreen(viewModel: MainViewModel) {
+    val haptics = rememberExpressiveHaptics()
     val requests by viewModel.prayerRequests.collectAsStateWithLifecycle()
     var showDialog by remember { mutableStateOf(false) }
     var editingRequest by remember { mutableStateOf<PrayerRequest?>(null) }
@@ -96,7 +99,7 @@ fun PrayerScreen(viewModel: MainViewModel) {
         topBar = { TopAppBar(title = { Text("Prayer List") }) },
         floatingActionButton = {
             if (selectedTabIndex == 0) {
-                FloatingActionButton(onClick = { showDialog = true }) {
+                FloatingActionButton(onClick = { haptics.pressed { showDialog = true } }) {
                     Icon(Icons.Default.Add, contentDescription = "Add Prayer")
                 }
             }
@@ -107,15 +110,15 @@ fun PrayerScreen(viewModel: MainViewModel) {
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            TabRow(selectedTabIndex = selectedTabIndex) {
+            PrimaryTabRow(selectedTabIndex = selectedTabIndex) {
                 Tab(
                     selected = selectedTabIndex == 0,
-                    onClick = { selectedTabIndex = 0 },
+                    onClick = { haptics.selected { selectedTabIndex = 0 } },
                     text = { Text("Active") }
                 )
                 Tab(
                     selected = selectedTabIndex == 1,
-                    onClick = { selectedTabIndex = 1 },
+                    onClick = { haptics.selected { selectedTabIndex = 1 } },
                     text = { Text("Archived") }
                 )
             }
@@ -123,7 +126,8 @@ fun PrayerScreen(viewModel: MainViewModel) {
             val unprayedRequests = filteredRequests.filter { !it.isAnswered && it.lastPrayedDate != viewModel.todayDateString }
             if (selectedTabIndex == 0 && unprayedRequests.isNotEmpty()) {
                 Button(
-                    onClick = { sessionRequests = unprayedRequests },
+                    shapes = ButtonDefaults.shapes(),
+                    onClick = { haptics.pressed { sessionRequests = unprayedRequests } },
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.tertiaryContainer,
@@ -157,7 +161,10 @@ fun PrayerScreen(viewModel: MainViewModel) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Checkbox(
                                         checked = req.isAnswered,
-                                        onCheckedChange = { viewModel.markPrayerAnswered(req.id, it) }
+                                        onCheckedChange = {
+                                            haptics.toggle(it)
+                                            viewModel.markPrayerAnswered(req.id, it)
+                                        }
                                     )
                                     Box {
                                         IconButton(onClick = { menuExpanded = true }) {
@@ -207,7 +214,9 @@ fun PrayerScreen(viewModel: MainViewModel) {
                             val isPrayed = isPrayedToday || prayedInUI
                             
                             Button(
+                                shapes = ButtonDefaults.shapes(),
                                 onClick = { 
+                                    haptics.confirm()
                                     viewModel.markPrayerPrayed(req.id)
                                     prayedInUI = true
                                 },
@@ -259,6 +268,7 @@ fun PrayerSessionScreen(
     onClose: () -> Unit,
     onPrayed: (PrayerRequest) -> Unit
 ) {
+    val haptics = rememberExpressiveHaptics()
     val pagerState = rememberPagerState(pageCount = { requests.size })
     val coroutineScope = rememberCoroutineScope()
     // Keep track of which requests were marked as prayed in this session to update the UI immediately
@@ -363,7 +373,9 @@ fun PrayerSessionScreen(
                     val isCurrentPrayed = prayedIndices[pagerState.currentPage] == true
                     
                     Button(
+                        shapes = ButtonDefaults.shapes(),
                         onClick = {
+                            haptics.confirm()
                             if (!isCurrentPrayed) {
                                 val req = requests[pagerState.currentPage]
                                 onPrayed(req)
@@ -408,6 +420,7 @@ fun PrayerDialog(
     onDismiss: () -> Unit,
     onSave: (String, String) -> Unit
 ) {
+    val haptics = rememberExpressiveHaptics()
     var title by remember { mutableStateOf(initialTitle) }
     var category by remember { mutableStateOf(initialCategory) }
     val categories = listOf("Personal", "Family", "Church", "Unbelievers", "Missionaries", "Nation/leaders")
@@ -435,7 +448,10 @@ fun PrayerDialog(
                     },
                     actions = {
                         Button(
-                            onClick = { if (title.isNotBlank()) onSave(title, category) },
+                            shapes = ButtonDefaults.shapes(),
+                            onClick = {
+                                if (title.isNotBlank()) haptics.confirmed { onSave(title, category) }
+                            },
                             enabled = title.isNotBlank(),
                             modifier = Modifier.padding(end = 8.dp)
                         ) {
@@ -458,7 +474,7 @@ fun PrayerDialog(
                         items(categories) { cat ->
                             FilterChip(
                                 selected = category == cat,
-                                onClick = { category = cat },
+                                onClick = { haptics.selected { category = cat } },
                                 label = { Text(cat) }
                             )
                         }

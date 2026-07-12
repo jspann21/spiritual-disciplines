@@ -38,18 +38,19 @@ fun BiblePickerHeader(
     onBack: (() -> Unit)? = null,
     onClose: (() -> Unit)? = null
 ) {
+    val haptics = rememberExpressiveHaptics()
     TopAppBar(
         title = { Text(title) },
         navigationIcon = {
             if (onBack != null) {
-                IconButton(onClick = onBack) {
+                IconButton(onClick = { haptics.pressed(onBack) }) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                 }
             }
         },
         actions = {
             if (onClose != null) {
-                IconButton(onClick = onClose) {
+                IconButton(onClick = { haptics.pressed(onClose) }) {
                     Icon(Icons.Default.Close, contentDescription = "Close picker")
                 }
             }
@@ -71,6 +72,7 @@ fun BibleBookGrid(
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(16.dp)
 ) {
+    val haptics = rememberExpressiveHaptics()
     LazyVerticalGrid(
         columns = GridCells.Adaptive(96.dp),
         contentPadding = contentPadding,
@@ -86,7 +88,7 @@ fun BibleBookGrid(
                     .height(56.dp)
                     .clip(MaterialTheme.shapes.medium)
                     .background(MaterialTheme.colorScheme.primaryContainer)
-                    .clickable { onBookSelected(book) }
+                    .clickable { haptics.selected { onBookSelected(book) } }
             ) {
                 Text(
                     text = BibleBooks.sblAbbreviationFor(book.name),
@@ -106,6 +108,7 @@ fun BibleNumberGrid(
     selectedNumbers: Set<Int> = emptySet(),
     contentPadding: PaddingValues = PaddingValues(16.dp)
 ) {
+    val haptics = rememberExpressiveHaptics()
     LazyVerticalGrid(
         columns = GridCells.Adaptive(48.dp),
         contentPadding = contentPadding,
@@ -125,7 +128,7 @@ fun BibleNumberGrid(
                         if (isSelected) MaterialTheme.colorScheme.primary
                         else MaterialTheme.colorScheme.primaryContainer
                     )
-                    .clickable { onNumberSelected(number) }
+                    .clickable { haptics.selected { onNumberSelected(number) } }
             ) {
                 Text(
                     text = number.toString(),

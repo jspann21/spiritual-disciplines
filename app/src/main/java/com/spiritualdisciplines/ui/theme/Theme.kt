@@ -2,6 +2,8 @@ package com.spiritualdisciplines.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MotionScheme
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
@@ -54,6 +56,7 @@ private val DarkColorScheme =
   )
 
 @Composable
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 fun MyApplicationTheme(
   darkTheme: Boolean = isSystemInDarkTheme(),
   accentColor: Int? = null,
@@ -102,5 +105,10 @@ fun MyApplicationTheme(
 
   val colorScheme = if (darkTheme) baseDark else baseLight
 
-  MaterialTheme(colorScheme = colorScheme, typography = Typography, content = content)
+  MaterialTheme(
+    colorScheme = colorScheme,
+    typography = Typography,
+    motionScheme = MotionScheme.expressive(),
+    content = content
+  )
 }

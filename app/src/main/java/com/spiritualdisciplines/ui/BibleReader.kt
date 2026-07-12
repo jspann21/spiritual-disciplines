@@ -21,8 +21,10 @@ import androidx.compose.material.icons.automirrored.filled.Subject
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -88,7 +90,7 @@ private data class BibleParagraph(
     val verses: List<BibleVerse>
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun BibleReader(
     translation: String,
@@ -98,6 +100,7 @@ fun BibleReader(
     getCachedChapter: suspend (String) -> CachedChapter? = { null },
     insertCachedChapter: suspend (CachedChapter) -> Unit = {}
 ) {
+    val haptics = rememberExpressiveHaptics()
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val books = BibleBooks.all
@@ -267,7 +270,7 @@ fun BibleReader(
             )
             BibleReaderState.READER -> TopAppBar(
                 title = {
-                    TextButton(onClick = { openChapterPicker() }) {
+                    TextButton(onClick = { haptics.pressed { openChapterPicker() } }) {
                         Text(
                             "${books[selectedBookIndex].name} $selectedChapter",
                             style = MaterialTheme.typography.titleMedium,
@@ -289,6 +292,7 @@ fun BibleReader(
                 actions = {
                     IconButton(
                         onClick = {
+                            haptics.select()
                             displayMode = when (displayMode) {
                                 BibleDisplayMode.PARAGRAPH -> BibleDisplayMode.VERSES
                                 BibleDisplayMode.VERSES -> BibleDisplayMode.PARAGRAPH
@@ -313,7 +317,7 @@ fun BibleReader(
                     val fontSizeIndex = fontSizes.indexOf(fontSize)
                     IconButton(
                         enabled = fontSizeIndex > 0,
-                        onClick = { fontSize = fontSizes[fontSizeIndex - 1] }
+                        onClick = { haptics.selected { fontSize = fontSizes[fontSizeIndex - 1] } }
                     ) {
                         Text(
                             text = "Aa-",
@@ -327,7 +331,7 @@ fun BibleReader(
                     }
                     IconButton(
                         enabled = fontSizeIndex < fontSizes.lastIndex,
-                        onClick = { fontSize = fontSizes[fontSizeIndex + 1] }
+                        onClick = { haptics.selected { fontSize = fontSizes[fontSizeIndex + 1] } }
                     ) {
                         Text(
                             text = "Aa+",
@@ -391,7 +395,10 @@ fun BibleReader(
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                     Text(error.orEmpty(), color = MaterialTheme.colorScheme.error)
                                     Spacer(modifier = Modifier.height(16.dp))
-                                    Button(onClick = { fetchChapter() }) {
+                                    Button(
+                                        onClick = { haptics.pressed { fetchChapter() } },
+                                        shapes = ButtonDefaults.shapes()
+                                    ) {
                                         Text("Retry")
                                     }
                                 }
@@ -476,7 +483,9 @@ fun BibleReader(
                                     val hasNext = selectedChapter < books[selectedBookIndex].chapters || selectedBookIndex < books.size - 1
                                     
                                     Button(
+                                        shapes = ButtonDefaults.shapes(),
                                         onClick = {
+                                            haptics.select()
                                             when {
                                                 selectedChapter > 1 -> selectedChapter -= 1
                                                 selectedBookIndex > 0 -> {
@@ -491,7 +500,9 @@ fun BibleReader(
                                     }
                                     
                                     Button(
+                                        shapes = ButtonDefaults.shapes(),
                                         onClick = {
+                                            haptics.select()
                                             when {
                                                 selectedChapter < books[selectedBookIndex].chapters -> selectedChapter += 1
                                                 selectedBookIndex < books.size - 1 -> {

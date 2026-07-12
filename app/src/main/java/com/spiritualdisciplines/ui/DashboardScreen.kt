@@ -440,6 +440,7 @@ fun DashboardScreen(viewModel: MainViewModel, onSettingsClick: () -> Unit) {
 @Composable
 fun ChecklistItem(title: String, subtitle: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
     val bgColor = if (checked) MaterialTheme.colorScheme.surface.copy(alpha = 0.6f) else MaterialTheme.colorScheme.surface
+    val haptics = rememberExpressiveHaptics()
     
     Surface(
         color = bgColor,
@@ -447,7 +448,11 @@ fun ChecklistItem(title: String, subtitle: String, checked: Boolean, onCheckedCh
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onCheckedChange(!checked) },
+            .clickable {
+                val newValue = !checked
+                if (newValue) haptics.confirm() else haptics.toggle(false)
+                onCheckedChange(newValue)
+            },
         tonalElevation = if (checked) 0.dp else 2.dp
     ) {
         Row(

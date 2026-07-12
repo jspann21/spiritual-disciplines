@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package com.spiritualdisciplines.ui
 
 import com.spiritualdisciplines.ui.theme.LocalBibleFontFamily
@@ -25,7 +27,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
@@ -46,7 +48,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
+import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TextButton
@@ -86,6 +88,7 @@ import java.time.format.DateTimeFormatter
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MemoryScreen(viewModel: MainViewModel) {
+    val haptics = rememberExpressiveHaptics()
     val verses by viewModel.memoryVerses.collectAsStateWithLifecycle()
     val translation by viewModel.bibleTranslation.collectAsStateWithLifecycle()
     var showDialog by remember { mutableStateOf(false) }
@@ -101,17 +104,18 @@ fun MemoryScreen(viewModel: MainViewModel) {
                     title = { Text("Scripture Memory") },
                     actions = {
                         if (selectedTab == 0) {
-                            IconButton(onClick = { showDialog = true }) {
+                            IconButton(onClick = { haptics.pressed { showDialog = true } }) {
                                 Icon(Icons.Default.Add, contentDescription = "Add verse")
                             }
                         }
                     }
                 )
-                TabRow(selectedTabIndex = selectedTab) {
+                PrimaryTabRow(selectedTabIndex = selectedTab) {
                     listOf("Library", "Practice").forEachIndexed { index, title ->
                         Tab(
                             selected = selectedTab == index,
                             onClick = {
+                                haptics.select()
                                 selectedTab = index
                                 if (index == 0) practiceVerseId = null
                             },
@@ -175,6 +179,7 @@ private fun MemoryLibrary(
     onDelete: (Int) -> Unit,
     onAdd: () -> Unit
 ) {
+    val haptics = rememberExpressiveHaptics()
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 20.dp),
@@ -199,7 +204,7 @@ private fun MemoryLibrary(
                     )
                     if (dueCount > 0) {
                         Spacer(Modifier.height(16.dp))
-                        Button(onClick = onPracticeDue) {
+                        Button(onClick = { haptics.pressed(onPracticeDue) }, shapes = ButtonDefaults.shapes()) {
                             Icon(Icons.Default.PlayArrow, contentDescription = null)
                             Spacer(Modifier.width(8.dp))
                             Text("Start review")
@@ -230,13 +235,13 @@ private fun MemoryLibrary(
                     Spacer(Modifier.height(6.dp))
                     Text("Choose a passage you want to carry with you.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.height(16.dp))
-                    Button(onClick = onAdd) { Text("Add a verse") }
+                    Button(onClick = { haptics.pressed(onAdd) }, shapes = ButtonDefaults.shapes()) { Text("Add a verse") }
                 }
             }
         } else {
             items(verses, key = { it.id }) { verse ->
                 Card(
-                    onClick = { onPracticeVerse(verse.id) },
+                    onClick = { haptics.selected { onPracticeVerse(verse.id) } },
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     shape = RoundedCornerShape(16.dp)
@@ -262,7 +267,7 @@ private fun MemoryLibrary(
                                 color = if (verse.nextReviewDate == null || verse.nextReviewDate <= today) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                        IconButton(onClick = { onDelete(verse.id) }) {
+                        IconButton(onClick = { haptics.pressed { onDelete(verse.id) } }) {
                             Icon(Icons.Default.Delete, contentDescription = "Delete ${verse.reference}", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
@@ -335,6 +340,7 @@ fun PracticeView(
     selectedVerseId: Int? = null,
     onBackToLibrary: () -> Unit = {}
 ) {
+    val haptics = rememberExpressiveHaptics()
     val today = viewModel.todayDateString
     val verseIds = verses.map { it.id }
     val sessionIds = remember(selectedVerseId, verseIds) {
@@ -393,7 +399,7 @@ fun PracticeView(
                 TextButton(onClick = ::undoLastReview) { Text("Undo last rating") }
             }
             Spacer(Modifier.height(24.dp))
-            Button(onClick = onBackToLibrary, modifier = Modifier.fillMaxWidth()) { Text("Return to library") }
+            Button(onClick = onBackToLibrary, modifier = Modifier.fillMaxWidth(), shapes = ButtonDefaults.shapes()) { Text("Return to library") }
             TextButton(
                 onClick = {
                     currentIndex = 0
@@ -424,7 +430,7 @@ fun PracticeView(
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBackToLibrary) {
-                Icon(Icons.Default.ArrowBack, contentDescription = "Back to library")
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back to library")
             }
             Text(
                 if (selectedVerseId == null) "Review ${currentIndex + 1} of ${sessionIds.size}" else "Free practice",
@@ -458,6 +464,7 @@ fun PracticeView(
                 FilterChip(
                     selected = mode == item,
                     onClick = {
+                        haptics.select()
                         mode = item
                         showAnswer = false
                         showRatingDialog = false
@@ -495,7 +502,9 @@ fun PracticeView(
         when {
             mode == "Study" -> {
                 Button(
+                    shapes = ButtonDefaults.shapes(),
                     onClick = {
+                        haptics.press()
                         mode = "Recall"
                         showAnswer = false
                     },
@@ -504,18 +513,20 @@ fun PracticeView(
             }
             !showAnswer -> {
                 Button(
-                    onClick = { showAnswer = true },
+                    shapes = ButtonDefaults.shapes(),
+                    onClick = { haptics.pressed { showAnswer = true } },
                     modifier = Modifier.fillMaxWidth().height(52.dp)
                 ) { Text("Show answer") }
             }
             else -> {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(
-                        onClick = { showAnswer = false },
+                        onClick = { haptics.pressed { showAnswer = false } },
                         modifier = Modifier.weight(1f).height(52.dp)
                     ) { Text("Hide answer") }
                     Button(
-                        onClick = { showRatingDialog = true },
+                        shapes = ButtonDefaults.shapes(),
+                        onClick = { haptics.pressed { showRatingDialog = true } },
                         modifier = Modifier.weight(1f).height(52.dp)
                     ) { Text("Finish review") }
                 }
@@ -548,6 +559,7 @@ fun PracticeView(
                         val days = nextInterval(currentVerse, quality)
                         Surface(
                             onClick = {
+                                haptics.confirm()
                                 val snapshot = currentVerse
                                 viewModel.updateVerseReview(currentVerse.id, quality)
                                 lastReview = LastMemoryReview(snapshot, days)
@@ -599,7 +611,7 @@ private fun PracticeEmptyState(onBackToLibrary: () -> Unit) {
         Spacer(Modifier.height(8.dp))
         Text("Your next review will appear here when it's time.", color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
         Spacer(Modifier.height(20.dp))
-        Button(onClick = onBackToLibrary) { Text("Choose a verse to practice") }
+        Button(onClick = onBackToLibrary, shapes = ButtonDefaults.shapes()) { Text("Choose a verse to practice") }
     }
 }
 
@@ -837,6 +849,7 @@ fun AddVerseDialog(translation: String, onDismiss: () -> Unit, onAdd: (String, S
                             }
                             if (stage == PickerStage.VERSE) {
                                 Button(
+                                    shapes = ButtonDefaults.shapes(),
                                     onClick = {
                                         val ref = "$selectedBook $selectedChapter:${formatVerses(selectedVerses)}"
                                         errorMessage = null
@@ -874,7 +887,7 @@ fun AddVerseDialog(translation: String, onDismiss: () -> Unit, onAdd: (String, S
                                     Text("Fetch")
                                 }
                             } else if (stage == PickerStage.REVIEW) {
-                                Button(onClick = {
+                                Button(shapes = ButtonDefaults.shapes(), onClick = {
                                     if (fetchedReference.isNotBlank() && fetchedText.isNotBlank()) {
                                         onAdd(fetchedReference, fetchedText)
                                     }

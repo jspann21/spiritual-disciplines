@@ -24,7 +24,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
+import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -47,6 +47,7 @@ import java.time.format.DateTimeFormatter
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BibleScreen(viewModel: MainViewModel) {
+    val haptics = rememberExpressiveHaptics()
     val todayRecord by viewModel.todayRecord.collectAsStateWithLifecycle()
     val readingPlanId by viewModel.readingPlanId.collectAsStateWithLifecycle()
     val startDateEpoch by viewModel.readingPlanStartDate.collectAsStateWithLifecycle()
@@ -124,12 +125,12 @@ fun BibleScreen(viewModel: MainViewModel) {
                     },
                     windowInsets = WindowInsets(0.dp)
                 )
-                TabRow(selectedTabIndex = selectedTabIndex) {
+                PrimaryTabRow(selectedTabIndex = selectedTabIndex) {
                     tabs.forEachIndexed { index, title ->
                         Tab(
                             text = { Text(title) },
                             selected = selectedTabIndex == index,
-                            onClick = { selectedTabIndex = index }
+                            onClick = { haptics.selected { selectedTabIndex = index } }
                         )
                     }
                 }
@@ -149,6 +150,7 @@ fun BibleScreen(viewModel: MainViewModel) {
                     if (isBehind) {
                         TextButton(
                             onClick = {
+                                haptics.confirm()
                                 val todayStr = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
                                 val pastRecords = allRecords.filter { it.date < todayStr && (it.readBible || it.bibleProgress.isNotEmpty()) }
                                 val lastRecord = pastRecords.maxByOrNull { it.date }
@@ -201,6 +203,7 @@ fun BibleScreen(viewModel: MainViewModel) {
                                             } else {
                                                 completedIndexes + index
                                             }
+                                            if (isChecked) haptics.toggle(false) else haptics.confirm()
                                             viewModel.updateDailyRecord { 
                                                 it.copy(bibleProgress = newIndexes.joinToString(",")) 
                                             }
@@ -219,7 +222,7 @@ fun BibleScreen(viewModel: MainViewModel) {
                                         color = if (isChecked) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
                                     )
                                 }
-                                IconButton(onClick = { openReader(passage) }) {
+                                IconButton(onClick = { haptics.pressed { openReader(passage) } }) {
                                     Icon(Icons.AutoMirrored.Filled.MenuBook, contentDescription = "Read $passage", tint = MaterialTheme.colorScheme.primary)
                                 }
                             }

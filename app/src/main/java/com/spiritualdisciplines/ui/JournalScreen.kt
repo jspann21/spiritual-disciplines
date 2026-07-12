@@ -29,7 +29,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AutoStories
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.HelpOutline
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Today
 import androidx.compose.material3.AlertDialog
@@ -134,6 +134,7 @@ private fun JournalTopBar(
     onShowArchive: () -> Unit,
     onBack: () -> Unit
 ) {
+    val haptics = rememberExpressiveHaptics()
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -143,7 +144,7 @@ private fun JournalTopBar(
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (showingArchive) {
-            IconButton(onClick = onBack) {
+            IconButton(onClick = { haptics.pressed(onBack) }) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back to journal")
             }
         } else {
@@ -156,7 +157,7 @@ private fun JournalTopBar(
             modifier = Modifier.weight(1f)
         )
         if (!showingArchive) {
-            IconButton(onClick = onShowArchive) {
+            IconButton(onClick = { haptics.pressed(onShowArchive) }) {
                 Icon(Icons.Default.AutoStories, contentDescription = "Past entries")
             }
         }
@@ -255,7 +256,7 @@ private fun JournalEditor(
                 Text(saveLabel, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 IconButton(onClick = { showPrompts = true }, modifier = Modifier.size(36.dp)) {
                     Icon(
-                        Icons.Default.HelpOutline,
+                        Icons.AutoMirrored.Filled.HelpOutline,
                         contentDescription = "Reflection prompts",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(20.dp)
@@ -297,6 +298,7 @@ private fun CompactDateNavigator(
     onNext: () -> Unit,
     onToday: () -> Unit
 ) {
+    val haptics = rememberExpressiveHaptics()
     Row(
         modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -312,14 +314,14 @@ private fun CompactDateNavigator(
                     text = "Back to today",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.clickable(onClick = onToday).padding(top = 2.dp)
+                    modifier = Modifier.clickable { haptics.selected(onToday) }.padding(top = 2.dp)
                 )
             }
         }
-        IconButton(onClick = onPrevious) {
+        IconButton(onClick = { haptics.selected(onPrevious) }) {
             Icon(Icons.Default.ChevronLeft, contentDescription = "Previous day")
         }
-        IconButton(onClick = onNext, enabled = date < today) {
+        IconButton(onClick = { haptics.selected(onNext) }, enabled = date < today) {
             Icon(Icons.Default.ChevronRight, contentDescription = "Next day")
         }
     }
@@ -327,8 +329,9 @@ private fun CompactDateNavigator(
 
 @Composable
 private fun InsertChip(label: String, onClick: () -> Unit) {
+    val haptics = rememberExpressiveHaptics()
     SuggestionChip(
-        onClick = onClick,
+        onClick = { haptics.selected(onClick) },
         label = { Text(label, maxLines = 1) },
         shape = RoundedCornerShape(9.dp),
         colors = SuggestionChipDefaults.suggestionChipColors(
@@ -379,7 +382,7 @@ private fun JournalPage(
 private fun PromptDialog(onDismiss: () -> Unit, onInsert: (ReflectionPrompt) -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        icon = { Icon(Icons.Default.HelpOutline, contentDescription = null) },
+        icon = { Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = null) },
         title = { Text("Reflection prompts") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -476,11 +479,12 @@ private fun EmptyArchive(isSearching: Boolean) {
 @Composable
 private fun ArchiveEntry(entry: JournalEntry, onClick: () -> Unit) {
     val date = remember(entry.date) { LocalDate.parse(entry.date) }
+    val haptics = rememberExpressiveHaptics()
     Surface(
         color = MaterialTheme.colorScheme.surface,
         shape = RoundedCornerShape(15.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)
+        modifier = Modifier.fillMaxWidth().clickable { haptics.selected(onClick) }
     ) {
         Row(Modifier.padding(15.dp), verticalAlignment = Alignment.Top) {
             Icon(

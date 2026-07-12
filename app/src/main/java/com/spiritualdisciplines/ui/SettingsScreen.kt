@@ -34,7 +34,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MenuAnchorType
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
@@ -73,6 +73,7 @@ import kotlin.math.sin
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(viewModel: MainViewModel, onBack: () -> Unit) {
+    val haptics = rememberExpressiveHaptics()
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
     val bibleFont by viewModel.bibleFont.collectAsStateWithLifecycle()
     val bibleTranslation by viewModel.bibleTranslation.collectAsStateWithLifecycle()
@@ -89,7 +90,7 @@ fun SettingsScreen(viewModel: MainViewModel, onBack: () -> Unit) {
             TopAppBar(
                 title = { Text("Settings") },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = { haptics.pressed(onBack) }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 }
@@ -142,7 +143,7 @@ fun SettingsScreen(viewModel: MainViewModel, onBack: () -> Unit) {
                         textStyle = MaterialTheme.typography.bodyLarge.copy(fontFamily = selectedBibleFont.third),
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = fontMenuExpanded) },
                         modifier = Modifier
-                            .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                            .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
                             .fillMaxWidth()
                     )
                     ExposedDropdownMenu(
@@ -159,6 +160,7 @@ fun SettingsScreen(viewModel: MainViewModel, onBack: () -> Unit) {
                                     )
                                 },
                                 onClick = {
+                                    haptics.select()
                                     viewModel.preferences.setBibleFont(option.first)
                                     fontMenuExpanded = false
                                 }
@@ -172,7 +174,7 @@ fun SettingsScreen(viewModel: MainViewModel, onBack: () -> Unit) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { showColorDialog = true }
+                        .clickable { haptics.pressed { showColorDialog = true } }
                         .padding(vertical = 8.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
@@ -211,7 +213,7 @@ fun SettingsScreen(viewModel: MainViewModel, onBack: () -> Unit) {
                             }
                         },
                         confirmButton = {
-                            TextButton(onClick = { showColorDialog = false }) {
+                            TextButton(onClick = { haptics.confirmed { showColorDialog = false } }) {
                                 Text("Done")
                             }
                         }
@@ -236,7 +238,7 @@ fun SettingsScreen(viewModel: MainViewModel, onBack: () -> Unit) {
                         onValueChange = {},
                         readOnly = true,
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                        modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth()
+                        modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable).fillMaxWidth()
                     )
                     ExposedDropdownMenu(
                         expanded = expanded,
@@ -246,6 +248,7 @@ fun SettingsScreen(viewModel: MainViewModel, onBack: () -> Unit) {
                             DropdownMenuItem(
                                 text = { Text(translation) },
                                 onClick = {
+                                    haptics.select()
                                     viewModel.preferences.setBibleTranslation(translation)
                                     expanded = false
                                 }
@@ -273,7 +276,7 @@ fun SettingsScreen(viewModel: MainViewModel, onBack: () -> Unit) {
                         onValueChange = {},
                         readOnly = true,
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedPlan) },
-                        modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth()
+                        modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable).fillMaxWidth()
                     )
                     ExposedDropdownMenu(
                         expanded = expandedPlan,
@@ -283,6 +286,7 @@ fun SettingsScreen(viewModel: MainViewModel, onBack: () -> Unit) {
                             DropdownMenuItem(
                                 text = { Text(plan.name) },
                                 onClick = {
+                                    haptics.select()
                                     viewModel.preferences.setReadingPlanId(plan.id)
                                     expandedPlan = false
                                 }
@@ -350,7 +354,11 @@ fun SettingsScreen(viewModel: MainViewModel, onBack: () -> Unit) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { viewModel.preferences.setShowStreak(!showStreak) }
+                    .clickable {
+                        val newValue = !showStreak
+                        haptics.toggle(newValue)
+                        viewModel.preferences.setShowStreak(newValue)
+                    }
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
@@ -361,7 +369,10 @@ fun SettingsScreen(viewModel: MainViewModel, onBack: () -> Unit) {
                 }
                 Switch(
                     checked = showStreak,
-                    onCheckedChange = { viewModel.preferences.setShowStreak(it) }
+                    onCheckedChange = {
+                        haptics.toggle(it)
+                        viewModel.preferences.setShowStreak(it)
+                    }
                 )
             }
 
@@ -423,6 +434,7 @@ fun SettingsScreen(viewModel: MainViewModel, onBack: () -> Unit) {
                         .fillMaxWidth()
                         .clickable { 
                             val newState = !notificationsEnabled
+                            haptics.toggle(newState)
                             if (newState && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU && !hasNotificationPermission) {
                                 permissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
                                 viewModel.preferences.setNotificationsEnabled(true)
@@ -446,6 +458,7 @@ fun SettingsScreen(viewModel: MainViewModel, onBack: () -> Unit) {
                     Switch(
                         checked = notificationsEnabled,
                         onCheckedChange = { 
+                            haptics.toggle(it)
                             if (it && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU && !hasNotificationPermission) {
                                 permissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
                                 viewModel.preferences.setNotificationsEnabled(true)
@@ -536,6 +549,7 @@ fun SettingsScreen(viewModel: MainViewModel, onBack: () -> Unit) {
                     },
                     confirmButton = {
                         TextButton(onClick = {
+                            haptics.confirm()
                             viewModel.clearAllCache {
                                 showClearCacheDialog = false
                             }
@@ -575,10 +589,15 @@ private fun formatFileSize(bytes: Long): String {
 
 @Composable
 fun ToggleItem(title: String, subtitle: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    val haptics = rememberExpressiveHaptics()
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onCheckedChange(!checked) }
+            .clickable {
+                val newValue = !checked
+                haptics.toggle(newValue)
+                onCheckedChange(newValue)
+            }
             .padding(vertical = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
@@ -589,7 +608,10 @@ fun ToggleItem(title: String, subtitle: String, checked: Boolean, onCheckedChang
         }
         Switch(
             checked = checked,
-            onCheckedChange = onCheckedChange
+            onCheckedChange = {
+                haptics.toggle(it)
+                onCheckedChange(it)
+            }
         )
     }
 }
@@ -597,10 +619,11 @@ fun ToggleItem(title: String, subtitle: String, checked: Boolean, onCheckedChang
 @Composable
 fun RowScope.ThemeOption(mode: String, label: String, selectedMode: String, onSelect: (String) -> Unit) {
     val isSelected = mode == selectedMode
+    val haptics = rememberExpressiveHaptics()
     Surface(
         modifier = Modifier
             .weight(1f)
-            .clickable { onSelect(mode) },
+            .clickable { haptics.selected { onSelect(mode) } },
         shape = RoundedCornerShape(8.dp),
         color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
         border = BorderStroke(1.dp, if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline)
