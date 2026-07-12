@@ -178,8 +178,7 @@ class MainViewModel(private val repository: AppRepository, val preferences: AppP
 
     fun clearAllCache(onComplete: () -> Unit) {
         viewModelScope.launch {
-            repository.clearAllCachedVerses()
-            repository.clearAllCachedChapters()
+            repository.clearAllCaches()
             onComplete()
         }
     }

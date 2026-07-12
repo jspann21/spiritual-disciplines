@@ -94,6 +94,12 @@ interface AppDao {
     @Query("DELETE FROM cached_chapters")
     suspend fun clearAllCachedChapters()
 
+    @Transaction
+    suspend fun clearAllCaches() {
+        clearAllCachedVerses()
+        clearAllCachedChapters()
+    }
+
     @Query(
         """
         SELECT

@@ -25,12 +25,11 @@ class AppRepository(private val appDao: AppDao) {
     suspend fun getCachedVerse(id: String): CachedVerse? = appDao.getCachedVerse(id)
     suspend fun insertCachedVerse(verse: CachedVerse) = appDao.insertCachedVerse(verse)
     suspend fun clearOldCachedVerses(keepIds: List<String>) = appDao.clearOldCachedVerses(keepIds)
-    suspend fun clearAllCachedVerses() = appDao.clearAllCachedVerses()
 
     suspend fun getCachedChapter(id: String): CachedChapter? = appDao.getCachedChapter(id)
     suspend fun insertCachedChapter(chapter: CachedChapter) =
         appDao.insertCachedChapterBounded(chapter, MAX_CACHED_CHAPTERS)
-    suspend fun clearAllCachedChapters() = appDao.clearAllCachedChapters()
+    suspend fun clearAllCaches() = appDao.clearAllCaches()
     fun getCacheSizeBytes(): Flow<Long> = appDao.getCacheSizeBytes()
 
     private companion object {
