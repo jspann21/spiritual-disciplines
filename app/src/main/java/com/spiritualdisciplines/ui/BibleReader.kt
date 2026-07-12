@@ -443,6 +443,7 @@ fun BibleReader(
                                             Text(
                                                 text = heading,
                                                 style = MaterialTheme.typography.titleSmall,
+                                                fontFamily = LocalBibleFontFamily.current,
                                                 color = verseNumberColor,
                                                 fontWeight = FontWeight.SemiBold,
                                                 modifier = Modifier.padding(top = 10.dp, bottom = 8.dp)
