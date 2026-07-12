@@ -162,37 +162,30 @@ fun DashboardScreen(viewModel: MainViewModel, onSettingsClick: () -> Unit) {
         votdError = result.second
     }
 
-    val enabledCount = listOf(showReadBible, showPray, showReviewVerse, showJournal, showGiveThanks, showPrayForOthers, showObeyApply).count { it }
-    val completedCount = listOf(
-        showReadBible to record.readBible,
-        showPray to record.pray,
-        showReviewVerse to record.reviewVerse,
-        showJournal to record.journal,
-        showGiveThanks to record.giveThanks,
-        showPrayForOthers to record.prayForOthers,
-        showObeyApply to record.obeyApply
-    ).count { it.first && it.second }
-    val progress = if (enabledCount > 0) completedCount.toFloat() / enabledCount else 1f
-
-    // Calculate streak
-    var streak = 0
-    val sortedDates = allRecords.sortedByDescending { it.date }
-    for (i in sortedDates.indices) {
-        val r = sortedDates[i]
-        val c = listOf(
-            showReadBible to r.readBible,
-            showPray to r.pray,
-            showReviewVerse to r.reviewVerse,
-            showJournal to r.journal,
-            showGiveThanks to r.giveThanks,
-            showPrayForOthers to r.prayForOthers,
-            showObeyApply to r.obeyApply
-        ).count { it.first && it.second }
-        if (c == enabledCount && enabledCount > 0) {
-            streak++
-        } else {
-            if (i > 0) break
-        }
+    val stats = remember(
+        record,
+        allRecords,
+        showReadBible,
+        showPray,
+        showReviewVerse,
+        showJournal,
+        showGiveThanks,
+        showPrayForOthers,
+        showObeyApply
+    ) {
+        calculateDashboardStats(
+            record = record,
+            recordsNewestFirst = allRecords,
+            visibility = DisciplineVisibility(
+                readBible = showReadBible,
+                pray = showPray,
+                reviewVerse = showReviewVerse,
+                journal = showJournal,
+                giveThanks = showGiveThanks,
+                prayForOthers = showPrayForOthers,
+                obeyApply = showObeyApply
+            )
+        )
     }
 
     val todayDateFormatted = LocalDate.now().format(DateTimeFormatter.ofPattern("EEEE, MMMM d"))
@@ -249,7 +242,7 @@ fun DashboardScreen(viewModel: MainViewModel, onSettingsClick: () -> Unit) {
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = "$streak Days",
+                            text = "${stats.streak} Days",
                             style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp),
                             color = MaterialTheme.colorScheme.primary
                         )
@@ -388,7 +381,7 @@ fun DashboardScreen(viewModel: MainViewModel, onSettingsClick: () -> Unit) {
                     .padding(horizontal = 8.dp)
             ) {
                 LinearProgressIndicator(
-                    progress = { progress },
+                    progress = { stats.progress },
                     modifier = Modifier
                         .weight(1f)
                         .height(8.dp)
@@ -398,7 +391,7 @@ fun DashboardScreen(viewModel: MainViewModel, onSettingsClick: () -> Unit) {
                 )
                 Spacer(modifier = Modifier.width(16.dp))
                 Text(
-                    text = "$completedCount / $enabledCount Completed",
+                    text = "${stats.completedCount} / ${stats.enabledCount} Completed",
                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp),
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -436,6 +429,71 @@ fun DashboardScreen(viewModel: MainViewModel, onSettingsClick: () -> Unit) {
         }
     }
 }
+
+private data class DisciplineVisibility(
+    val readBible: Boolean,
+    val pray: Boolean,
+    val reviewVerse: Boolean,
+    val journal: Boolean,
+    val giveThanks: Boolean,
+    val prayForOthers: Boolean,
+    val obeyApply: Boolean
+)
+
+private data class DashboardStats(
+    val progress: Float,
+    val streak: Int,
+    val completedCount: Int,
+    val enabledCount: Int
+)
+
+private fun calculateDashboardStats(
+    record: com.spiritualdisciplines.data.DailyRecord,
+    recordsNewestFirst: List<com.spiritualdisciplines.data.DailyRecord>,
+    visibility: DisciplineVisibility
+): DashboardStats {
+    val enabledCount = visibility.enabledCount()
+    val completedCount = record.completedCount(visibility)
+    val progress = if (enabledCount > 0) completedCount.toFloat() / enabledCount else 1f
+
+    var streak = 0
+    for (i in recordsNewestFirst.indices) {
+        val completed = recordsNewestFirst[i].completedCount(visibility)
+        if (completed == enabledCount && enabledCount > 0) {
+            streak++
+        } else if (i > 0) {
+            break
+        }
+    }
+    return DashboardStats(
+        progress = progress,
+        streak = streak,
+        completedCount = completedCount,
+        enabledCount = enabledCount
+    )
+}
+
+private fun DisciplineVisibility.enabledCount(): Int =
+    readBible.toInt() +
+        pray.toInt() +
+        reviewVerse.toInt() +
+        journal.toInt() +
+        giveThanks.toInt() +
+        prayForOthers.toInt() +
+        obeyApply.toInt()
+
+private fun com.spiritualdisciplines.data.DailyRecord.completedCount(
+    visibility: DisciplineVisibility
+): Int =
+    (visibility.readBible && readBible).toInt() +
+        (visibility.pray && pray).toInt() +
+        (visibility.reviewVerse && reviewVerse).toInt() +
+        (visibility.journal && journal).toInt() +
+        (visibility.giveThanks && giveThanks).toInt() +
+        (visibility.prayForOthers && prayForOthers).toInt() +
+        (visibility.obeyApply && obeyApply).toInt()
+
+private fun Boolean.toInt(): Int = if (this) 1 else 0
 
 @Composable
 fun ChecklistItem(title: String, subtitle: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
