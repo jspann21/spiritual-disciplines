@@ -184,41 +184,45 @@ fun BibleReader(
                         val urlString = "https://bolls.life/get-chapter/$translation/$bookId/$selectedChapter/"
                         val url = URL(urlString)
                         val connection = url.openConnection() as HttpURLConnection
-                        connection.requestMethod = "GET"
-                        connection.connectTimeout = 5000
-                        connection.readTimeout = 5000
+                        try {
+                            connection.requestMethod = "GET"
+                            connection.connectTimeout = 5000
+                            connection.readTimeout = 5000
 
-                        if (connection.responseCode == 200) {
-                            val response = connection.inputStream.bufferedReader().use { it.readText() }
-                            val jsonArray = JSONArray(response)
-                            val paragraphBreaks = fetchParagraphBreakVerseNumbers(
-                                translation = translation,
-                                bookId = bookId,
-                                chapter = chapter,
-                                currentChapterJson = jsonArray,
-                                paragraphBreakIndex = paragraphBreakIndex
-                            )
-                            val verses = parseChapterVerses(jsonArray, paragraphBreaks)
+                            if (connection.responseCode == 200) {
+                                val response = connection.inputStream.bufferedReader().use { it.readText() }
+                                val jsonArray = JSONArray(response)
+                                val paragraphBreaks = fetchParagraphBreakVerseNumbers(
+                                    translation = translation,
+                                    bookId = bookId,
+                                    chapter = chapter,
+                                    currentChapterJson = jsonArray,
+                                    paragraphBreakIndex = paragraphBreakIndex
+                                )
+                                val verses = parseChapterVerses(jsonArray, paragraphBreaks)
 
-                            // Save to cache
-                            val newCachedChapter = CachedChapter(
-                                id = cacheId,
-                                translation = translation,
-                                bookId = bookId,
-                                chapter = chapter,
-                                versesJson = response
-                            )
-                            insertCachedChapter(newCachedChapter)
+                                // Save to cache
+                                val newCachedChapter = CachedChapter(
+                                    id = cacheId,
+                                    translation = translation,
+                                    bookId = bookId,
+                                    chapter = chapter,
+                                    versesJson = response
+                                )
+                                insertCachedChapter(newCachedChapter)
 
-                            withContext(Dispatchers.Main) {
-                                chapterContent = verses
-                                isLoading = false
+                                withContext(Dispatchers.Main) {
+                                    chapterContent = verses
+                                    isLoading = false
+                                }
+                            } else {
+                                withContext(Dispatchers.Main) {
+                                    error = "Failed to load chapter. ($translation might not be supported)"
+                                    isLoading = false
+                                }
                             }
-                        } else {
-                            withContext(Dispatchers.Main) {
-                                error = "Failed to load chapter. ($translation might not be supported)"
-                                isLoading = false
-                            }
+                        } finally {
+                            connection.disconnect()
                         }
                     }
                 } catch (e: Exception) {

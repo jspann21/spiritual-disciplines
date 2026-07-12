@@ -97,62 +97,66 @@ fun DashboardScreen(viewModel: MainViewModel, onSettingsClick: () -> Unit) {
             try {
                 val url = URL("https://bolls.life/get-verses/")
                 val connection = url.openConnection() as HttpURLConnection
-                connection.requestMethod = "POST"
-                connection.setRequestProperty("Content-Type", "application/json")
-                connection.setRequestProperty("User-Agent", "Mozilla/5.0")
-                connection.doOutput = true
-                connection.connectTimeout = 5000
-                connection.readTimeout = 5000
-                
-                val reqObj = JSONObject()
-                reqObj.put("translation", bibleTranslation)
-                reqObj.put("book", dailyVerse.book)
-                reqObj.put("chapter", dailyVerse.chapter)
-                val versesArray = JSONArray()
-                versesArray.put(dailyVerse.verse)
-                reqObj.put("verses", versesArray)
-                
-                val rootArray = JSONArray().put(reqObj)
-                
-                connection.outputStream.use { os ->
-                    val input = rootArray.toString().toByteArray(Charsets.UTF_8)
-                    os.write(input, 0, input.size)
-                }
-                
-                if (connection.responseCode == 200) {
-                    val response = connection.inputStream.bufferedReader().use { it.readText() }
-                    val resArray = JSONArray(response)
-                    if (resArray.length() > 0) {
-                        val verseItems = resArray.getJSONArray(0)
-                        if (verseItems.length() > 0) {
-                            val sb = StringBuilder()
-                            for (i in 0 until verseItems.length()) {
-                                val vObj = verseItems.getJSONObject(i)
-                                val vText = vObj.getString("text").replace(Regex("<.*?>"), "").trim()
-                                sb.append(vText).append(" ")
-                            }
-                            val fetchedText = sb.toString().trim()
-                            votdText = fetchedText
-                            
-                            viewModel.insertCachedVerse(
-                                CachedVerse(
-                                    id = cacheId,
-                                    translation = bibleTranslation,
-                                    bookId = dailyVerse.book,
-                                    chapter = dailyVerse.chapter,
-                                    verse = dailyVerse.verse,
-                                    text = fetchedText
+                try {
+                    connection.requestMethod = "POST"
+                    connection.setRequestProperty("Content-Type", "application/json")
+                    connection.setRequestProperty("User-Agent", "Mozilla/5.0")
+                    connection.doOutput = true
+                    connection.connectTimeout = 5000
+                    connection.readTimeout = 5000
+
+                    val reqObj = JSONObject()
+                    reqObj.put("translation", bibleTranslation)
+                    reqObj.put("book", dailyVerse.book)
+                    reqObj.put("chapter", dailyVerse.chapter)
+                    val versesArray = JSONArray()
+                    versesArray.put(dailyVerse.verse)
+                    reqObj.put("verses", versesArray)
+
+                    val rootArray = JSONArray().put(reqObj)
+
+                    connection.outputStream.use { os ->
+                        val input = rootArray.toString().toByteArray(Charsets.UTF_8)
+                        os.write(input, 0, input.size)
+                    }
+
+                    if (connection.responseCode == 200) {
+                        val response = connection.inputStream.bufferedReader().use { it.readText() }
+                        val resArray = JSONArray(response)
+                        if (resArray.length() > 0) {
+                            val verseItems = resArray.getJSONArray(0)
+                            if (verseItems.length() > 0) {
+                                val sb = StringBuilder()
+                                for (i in 0 until verseItems.length()) {
+                                    val vObj = verseItems.getJSONObject(i)
+                                    val vText = vObj.getString("text").replace(Regex("<.*?>"), "").trim()
+                                    sb.append(vText).append(" ")
+                                }
+                                val fetchedText = sb.toString().trim()
+                                votdText = fetchedText
+
+                                viewModel.insertCachedVerse(
+                                    CachedVerse(
+                                        id = cacheId,
+                                        translation = bibleTranslation,
+                                        bookId = dailyVerse.book,
+                                        chapter = dailyVerse.chapter,
+                                        verse = dailyVerse.verse,
+                                        text = fetchedText
+                                    )
                                 )
-                            )
-                            fetchedText to null
+                                fetchedText to null
+                            } else {
+                                null to "Translation might not be supported"
+                            }
                         } else {
                             null to "Translation might not be supported"
                         }
                     } else {
-                        null to "Translation might not be supported"
+                        null to "Error: ${connection.responseCode}"
                     }
-                } else {
-                    null to "Error: ${connection.responseCode}"
+                } finally {
+                    connection.disconnect()
                 }
             } catch (_: Exception) {
                 null to "Could not load verse. Please check your internet connection."
