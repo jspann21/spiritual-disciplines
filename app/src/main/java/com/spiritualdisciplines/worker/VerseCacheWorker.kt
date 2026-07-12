@@ -10,6 +10,7 @@ import com.spiritualdisciplines.data.AppDatabase
 import com.spiritualdisciplines.data.AppPreferences
 import com.spiritualdisciplines.data.AppRepository
 import com.spiritualdisciplines.data.CachedVerse
+import com.spiritualdisciplines.ui.DailyVerse
 import com.spiritualdisciplines.ui.dailyVerses
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -37,10 +38,11 @@ class VerseCacheWorker(
             val todayDayOfYear = calendar.get(Calendar.DAY_OF_YEAR)
             val tomorrowDayOfYear = (todayDayOfYear % 365) + 1
 
-            val todayId = fetchAndCacheVerse(todayDayOfYear, translation, repository)
-            val tomorrowId = fetchAndCacheVerse(tomorrowDayOfYear, translation, repository)
-
-            val keepIds = listOfNotNull(todayId, tomorrowId)
+            val keepIds = fetchAndCacheVerses(
+                dayOfYears = listOf(todayDayOfYear, tomorrowDayOfYear),
+                translation = translation,
+                repository = repository
+            )
             if (keepIds.isNotEmpty()) {
                 repository.clearOldCachedVerses(keepIds)
             }
@@ -51,17 +53,38 @@ class VerseCacheWorker(
         }
     }
 
-    private suspend fun fetchAndCacheVerse(dayOfYear: Int, translation: String, repository: AppRepository): String? {
-        val dailyVerse = dailyVerses[(dayOfYear - 1) % dailyVerses.size]
-        val cacheId = "$translation-${dailyVerse.book}-${dailyVerse.chapter}-${dailyVerse.verse}"
-        
-        // Skip if already cached
-        val existing = repository.getCachedVerse(cacheId)
-        if (existing != null) return cacheId
+    private suspend fun fetchAndCacheVerses(
+        dayOfYears: List<Int>,
+        translation: String,
+        repository: AppRepository
+    ): List<String> {
+        val targets = dayOfYears.map { dayOfYear ->
+            val verse = dailyVerses[(dayOfYear - 1) % dailyVerses.size]
+            CacheTarget(
+                verse = verse,
+                cacheId = "$translation-${verse.book}-${verse.chapter}-${verse.verse}"
+            )
+        }
+        val cachedIds = targets.mapNotNull { target ->
+            target.cacheId.takeIf { repository.getCachedVerse(it) != null }
+        }
+        val missingTargets = targets.filterNot { it.cacheId in cachedIds }
+        if (missingTargets.isEmpty()) return cachedIds
 
-        try {
-            val url = URL("https://bolls.life/get-verses/")
-            val connection = url.openConnection() as HttpURLConnection
+        val rootArray = JSONArray()
+        missingTargets.forEach { target ->
+            rootArray.put(
+                JSONObject().apply {
+                    put("translation", translation)
+                    put("book", target.verse.book)
+                    put("chapter", target.verse.chapter)
+                    put("verses", JSONArray().put(target.verse.verse))
+                }
+            )
+        }
+
+        val connection = URL("https://bolls.life/get-verses/").openConnection() as HttpURLConnection
+        return try {
             connection.requestMethod = "POST"
             connection.setRequestProperty("Content-Type", "application/json")
             connection.setRequestProperty("User-Agent", "Mozilla/5.0")
@@ -69,56 +92,60 @@ class VerseCacheWorker(
             connection.connectTimeout = 5000
             connection.readTimeout = 5000
             
-            val reqObj = JSONObject()
-            reqObj.put("translation", translation)
-            reqObj.put("book", dailyVerse.book)
-            reqObj.put("chapter", dailyVerse.chapter)
-            val versesArray = JSONArray()
-            versesArray.put(dailyVerse.verse)
-            reqObj.put("verses", versesArray)
-            
-            val rootArray = JSONArray().put(reqObj)
-            
             connection.outputStream.use { os ->
                 val input = rootArray.toString().toByteArray(Charsets.UTF_8)
                 os.write(input, 0, input.size)
             }
-            
-            if (connection.responseCode == 200) {
-                val response = connection.inputStream.bufferedReader().use { it.readText() }
-                val resArray = JSONArray(response)
-                if (resArray.length() > 0) {
-                    val verseItems = resArray.getJSONArray(0)
-                    if (verseItems.length() > 0) {
-                        val sb = StringBuilder()
+
+            if (connection.responseCode != HttpURLConnection.HTTP_OK) return cachedIds
+
+            val response = connection.inputStream.bufferedReader().use { it.readText() }
+            val responseGroups = JSONArray(response)
+            val fetchedIds = buildList {
+                missingTargets.forEachIndexed { index, target ->
+                    if (index >= responseGroups.length()) return@forEachIndexed
+                    val verseItems = responseGroups.getJSONArray(index)
+                    if (verseItems.length() == 0) return@forEachIndexed
+
+                    val text = buildString {
                         for (i in 0 until verseItems.length()) {
-                            val vObj = verseItems.getJSONObject(i)
-                            val vText = vObj.getString("text").replace(Regex("<.*?>"), "").trim()
-                            sb.append(vText).append(" ")
-                        }
-                        val votdText = sb.toString().trim()
-                        
-                        repository.insertCachedVerse(
-                            CachedVerse(
-                                id = cacheId,
-                                translation = translation,
-                                bookId = dailyVerse.book,
-                                chapter = dailyVerse.chapter,
-                                verse = dailyVerse.verse,
-                                text = votdText
+                            if (isNotEmpty()) append(' ')
+                            append(
+                                verseItems.getJSONObject(i).getString("text")
+                                    .replace(HTML_TAG_REGEX, "")
+                                    .trim()
                             )
-                        )
-                        return cacheId
+                        }
                     }
+                    repository.insertCachedVerse(
+                        CachedVerse(
+                            id = target.cacheId,
+                            translation = translation,
+                            bookId = target.verse.book,
+                            chapter = target.verse.chapter,
+                            verse = target.verse.verse,
+                            text = text
+                        )
+                    )
+                    add(target.cacheId)
                 }
             }
+            cachedIds + fetchedIds
         } catch (_: Exception) {
+            cachedIds
+        } finally {
+            connection.disconnect()
         }
-        return null
     }
+
+    private data class CacheTarget(
+        val verse: DailyVerse,
+        val cacheId: String
+    )
 
     companion object {
         private const val WORK_NAME = "verse_cache_worker"
+        private val HTML_TAG_REGEX = Regex("<.*?>")
 
         fun schedule(context: Context) {
             val workRequest = PeriodicWorkRequestBuilder<VerseCacheWorker>(12, TimeUnit.HOURS)
