@@ -62,8 +62,16 @@ class MainViewModel(private val repository: AppRepository, val preferences: AppP
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0L)
 
     fun updateDailyRecord(update: (DailyRecord) -> DailyRecord) {
+        updateDailyRecord(todayDateString, update)
+    }
+
+    fun updateDailyRecord(date: String, update: (DailyRecord) -> DailyRecord) {
         viewModelScope.launch {
-            val current = todayRecord.value
+            val current = if (date == todayDateString) {
+                todayRecord.value
+            } else {
+                allDailyRecords.value.firstOrNull { it.date == date } ?: DailyRecord(date)
+            }
             repository.insertDailyRecord(update(current))
         }
     }

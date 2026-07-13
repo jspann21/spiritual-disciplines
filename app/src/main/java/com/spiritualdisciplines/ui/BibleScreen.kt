@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.filled.ChevronLeft
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -39,10 +41,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.spiritualdisciplines.data.DailyRecord
 import com.spiritualdisciplines.data.ReadingPlanRepository
 import com.spiritualdisciplines.viewmodel.MainViewModel
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
+
+private val readingDateFormatter = DateTimeFormatter.ofPattern("MMM d")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -60,45 +66,52 @@ fun BibleScreen(viewModel: MainViewModel) {
 
     val currentPlan = remember(readingPlanId) { ReadingPlanRepository.getPlan(readingPlanId) }
     
-    val dayOfYear = remember(startDateEpoch) { 
-        val startDate = LocalDate.ofEpochDay(startDateEpoch)
-        val today = LocalDate.now()
-        val daysBetween = java.time.temporal.ChronoUnit.DAYS.between(startDate, today).toInt()
+    val today = remember { LocalDate.now() }
+    val planStartDate = remember(startDateEpoch) { LocalDate.ofEpochDay(startDateEpoch) }
+    val dayOfYear = remember(startDateEpoch, today) {
+        val daysBetween = ChronoUnit.DAYS.between(planStartDate, today).toInt()
         val day = daysBetween + 1
         if (day > 0) day else 1 
     }
-    
-    val todaysReading = remember(currentPlan, dayOfYear) { currentPlan.getReadingForDay(dayOfYear) }
-    
-    // Parse the bibleProgress string (e.g. "0,2")
-    val completedIndexes = remember(todayRecord.bibleProgress) {
-        todayRecord.bibleProgress.split(",").mapNotNullTo(mutableSetOf()) { it.toIntOrNull() }
+
+    var selectedPlanDay by remember(readingPlanId, startDateEpoch) { mutableIntStateOf(dayOfYear) }
+    val selectedDate = remember(planStartDate, selectedPlanDay) {
+        planStartDate.plusDays((selectedPlanDay - 1).toLong())
     }
-    
-    val allCompleted = todaysReading.passages.isNotEmpty() && todaysReading.passages.indices.all { completedIndexes.contains(it) }
+    val selectedDateString = remember(selectedDate) { selectedDate.format(DateTimeFormatter.ISO_LOCAL_DATE) }
+    val selectedReading = remember(currentPlan, selectedPlanDay) {
+        currentPlan.getReadingForDay(selectedPlanDay)
+    }
+    val selectedRecord = if (selectedDate == today) {
+        todayRecord
+    } else {
+        allRecords.firstOrNull { it.date == selectedDateString } ?: DailyRecord(selectedDateString)
+    }
 
-    val nextPlanDay = remember(allRecords, startDateEpoch) {
-        val todayStr = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
-        val lastRecord = allRecords.firstOrNull {
-            it.date < todayStr && (it.readBible || it.bibleProgress.isNotEmpty())
-        }
+    // Parse the bibleProgress string (e.g. "0,2")
+    val completedIndexes = remember(selectedRecord.bibleProgress) {
+        selectedRecord.bibleProgress.split(",").mapNotNullTo(mutableSetOf()) { it.toIntOrNull() }
+    }
 
-        if (lastRecord != null) {
-            val lastDate = LocalDate.parse(lastRecord.date, DateTimeFormatter.ISO_LOCAL_DATE)
-            val expectedPlanDayOnLastDate = java.time.temporal.ChronoUnit.DAYS.between(LocalDate.ofEpochDay(startDateEpoch), lastDate).toInt() + 1
-            if (lastRecord.readBible) expectedPlanDayOnLastDate + 1 else expectedPlanDayOnLastDate
-        } else {
-            1
-        }
+    val allCompleted = selectedReading.passages.isNotEmpty() &&
+        selectedReading.passages.indices.all { completedIndexes.contains(it) }
+
+    val nextPlanDay = remember(allRecords, currentPlan, planStartDate, dayOfYear) {
+        val recordsByDate = allRecords.associateBy { it.date }
+        (1 until dayOfYear).firstOrNull { planDay ->
+            val reading = currentPlan.getReadingForDay(planDay)
+            val date = planStartDate.plusDays((planDay - 1).toLong()).format(DateTimeFormatter.ISO_LOCAL_DATE)
+            reading.passages.isNotEmpty() && recordsByDate[date]?.readBible != true
+        } ?: dayOfYear
     }
     val isBehind = nextPlanDay < dayOfYear
 
-    // Synchronize the master `readBible` boolean if all passages are checked off
-    LaunchedEffect(allCompleted, todayRecord.readBible) {
-        if (allCompleted && !todayRecord.readBible) {
-            viewModel.updateDailyRecord { it.copy(readBible = true) }
-        } else if (!allCompleted && todayRecord.readBible) {
-            viewModel.updateDailyRecord { it.copy(readBible = false) }
+    // Synchronize the selected day's master `readBible` boolean with its passages.
+    LaunchedEffect(allCompleted, selectedRecord.readBible, selectedDateString) {
+        if (allCompleted && !selectedRecord.readBible) {
+            viewModel.updateDailyRecord(selectedDateString) { it.copy(readBible = true) }
+        } else if (!allCompleted && selectedRecord.readBible) {
+            viewModel.updateDailyRecord(selectedDateString) { it.copy(readBible = false) }
         }
     }
 
@@ -148,37 +161,42 @@ fun BibleScreen(viewModel: MainViewModel) {
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("Today's Reading: ${currentPlan.name}", style = MaterialTheme.typography.titleLarge)
-                    if (isBehind) {
+                    Text(currentPlan.name, style = MaterialTheme.typography.titleLarge)
+                    if (isBehind && selectedPlanDay == dayOfYear) {
                         TextButton(
                             onClick = {
-                                haptics.confirm()
-                                val today = LocalDate.now()
-                                val newStartDate = today.minusDays((nextPlanDay - 1).toLong())
-                                viewModel.preferences.setReadingPlanStartDate(newStartDate.toEpochDay())
-                                viewModel.updateDailyRecord { it.copy(bibleProgress = "", readBible = false) }
+                                haptics.selected { selectedPlanDay = nextPlanDay }
                             },
                             contentPadding = PaddingValues(0.dp),
                             modifier = Modifier.height(32.dp)
                         ) {
-                            Text("Fell behind? Catch me up")
+                            Text("Catch up from Day $nextPlanDay")
                         }
                     }
                 }
                 
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text("Day ${todaysReading.dayOfYear}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                        ReadingDayNavigator(
+                            planDay = selectedPlanDay,
+                            date = selectedDate,
+                            isToday = selectedPlanDay == dayOfYear,
+                            canGoBack = selectedPlanDay > 1,
+                            canGoForward = selectedPlanDay < dayOfYear,
+                            onPrevious = { selectedPlanDay-- },
+                            onNext = { selectedPlanDay++ },
+                            onToday = { selectedPlanDay = dayOfYear }
+                        )
                         
-                        if (todaysReading.passages.isEmpty()) {
+                        if (selectedReading.passages.isEmpty()) {
                             Text(
-                                "No scheduled readings today.",
+                                "No scheduled readings for this day.",
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
 
-                        todaysReading.passages.forEachIndexed { index, passage ->
+                        selectedReading.passages.forEachIndexed { index, passage ->
                             val isChecked = completedIndexes.contains(index)
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -194,7 +212,7 @@ fun BibleScreen(viewModel: MainViewModel) {
                                                 completedIndexes + index
                                             }
                                             if (isChecked) haptics.toggle(false) else haptics.confirm()
-                                            viewModel.updateDailyRecord { 
+                                            viewModel.updateDailyRecord(selectedDateString) {
                                                 it.copy(bibleProgress = newIndexes.joinToString(",")) 
                                             }
                                         }
@@ -231,6 +249,64 @@ fun BibleScreen(viewModel: MainViewModel) {
                     insertCachedChapter = { chapter -> viewModel.insertCachedChapter(chapter) }
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun ReadingDayNavigator(
+    planDay: Int,
+    date: LocalDate,
+    isToday: Boolean,
+    canGoBack: Boolean,
+    canGoForward: Boolean,
+    onPrevious: () -> Unit,
+    onNext: () -> Unit,
+    onToday: () -> Unit
+) {
+    val haptics = rememberExpressiveHaptics()
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        IconButton(
+            onClick = { haptics.selected(onPrevious) },
+            enabled = canGoBack
+        ) {
+            Icon(Icons.Default.ChevronLeft, contentDescription = "Previous reading day")
+        }
+        Column(
+            modifier = Modifier.weight(1f),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                "Day $planDay",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary
+            )
+            if (isToday) {
+                Text("Today", style = MaterialTheme.typography.bodySmall)
+            } else {
+                Text(
+                    date.format(readingDateFormatter),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    "Back to today",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier
+                        .clickable { haptics.selected(onToday) }
+                        .padding(top = 2.dp)
+                )
+            }
+        }
+        IconButton(
+            onClick = { haptics.selected(onNext) },
+            enabled = canGoForward
+        ) {
+            Icon(Icons.Default.ChevronRight, contentDescription = "Next reading day")
         }
     }
 }
