@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
@@ -50,7 +51,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -99,17 +99,7 @@ fun MemoryScreen(viewModel: MainViewModel) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = { 
-            Column {
-                TopAppBar(
-                    title = { Text("Scripture Memory") },
-                    actions = {
-                        if (selectedTab == 0) {
-                            IconButton(onClick = { haptics.pressed { showDialog = true } }) {
-                                Icon(Icons.Default.Add, contentDescription = "Add verse")
-                            }
-                        }
-                    }
-                )
+            Column(modifier = Modifier.statusBarsPadding()) {
                 PrimaryTabRow(selectedTabIndex = selectedTab) {
                     listOf("Library", "Practice").forEachIndexed { index, title ->
                         Tab(
@@ -125,6 +115,13 @@ fun MemoryScreen(viewModel: MainViewModel) {
                 }
             }
         },
+        floatingActionButton = {
+            if (selectedTab == 0) {
+                FloatingActionButton(onClick = { haptics.pressed { showDialog = true } }) {
+                    Icon(Icons.Default.Add, contentDescription = "Add verse")
+                }
+            }
+        }
     ) { padding ->
         Box(modifier = Modifier.padding(padding).fillMaxSize()) {
             if (selectedTab == 0) {

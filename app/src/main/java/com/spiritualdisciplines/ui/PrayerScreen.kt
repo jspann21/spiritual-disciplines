@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -117,7 +118,23 @@ fun PrayerScreen(viewModel: MainViewModel) {
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
-        topBar = { TopAppBar(title = { Text("Prayer List") }) },
+        topBar = {
+            PrimaryTabRow(
+                selectedTabIndex = selectedTabIndex,
+                modifier = Modifier.statusBarsPadding()
+            ) {
+                Tab(
+                    selected = selectedTabIndex == 0,
+                    onClick = { haptics.selected { selectedTabIndex = 0 } },
+                    text = { Text("Active") }
+                )
+                Tab(
+                    selected = selectedTabIndex == 1,
+                    onClick = { haptics.selected { selectedTabIndex = 1 } },
+                    text = { Text("Archived") }
+                )
+            }
+        },
         floatingActionButton = {
             if (selectedTabIndex == 0) {
                 FloatingActionButton(onClick = { haptics.pressed { showDialog = true } }) {
@@ -131,19 +148,6 @@ fun PrayerScreen(viewModel: MainViewModel) {
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            PrimaryTabRow(selectedTabIndex = selectedTabIndex) {
-                Tab(
-                    selected = selectedTabIndex == 0,
-                    onClick = { haptics.selected { selectedTabIndex = 0 } },
-                    text = { Text("Active") }
-                )
-                Tab(
-                    selected = selectedTabIndex == 1,
-                    onClick = { haptics.selected { selectedTabIndex = 1 } },
-                    text = { Text("Archived") }
-                )
-            }
-            
             if (selectedTabIndex == 0 && unprayedRequests.isNotEmpty()) {
                 Button(
                     shapes = ButtonDefaults.shapes(),
