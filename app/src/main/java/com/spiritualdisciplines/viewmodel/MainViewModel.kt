@@ -25,6 +25,7 @@ class MainViewModel(private val repository: AppRepository, val preferences: AppP
 
     val themeMode: StateFlow<String> = preferences.themeMode
     val bibleFont: StateFlow<String> = preferences.bibleFont
+    val bibleTextSize: StateFlow<Int> = preferences.bibleTextSize
     val bibleTranslation: StateFlow<String> = preferences.bibleTranslation
     val readingPlanId: StateFlow<String> = preferences.readingPlanId
     val readingPlanStartDate: StateFlow<Long> = preferences.readingPlanStartDate

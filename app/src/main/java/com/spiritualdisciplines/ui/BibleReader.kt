@@ -97,6 +97,8 @@ private data class BibleParagraph(
 @Composable
 fun BibleReader(
     translation: String,
+    initialFontSizeSp: Int = BibleFontSize.MEDIUM.sp,
+    onFontSizeChange: (Int) -> Unit = {},
     initialBook: String? = null,
     initialChapter: Int? = null,
     onClose: (() -> Unit)? = null, // If provided, shows a close button
@@ -115,7 +117,12 @@ fun BibleReader(
     var selectedBookIndex by remember { mutableIntStateOf(0) }
     var selectedChapter by remember { mutableIntStateOf(1) }
     var displayMode by remember { mutableStateOf(BibleDisplayMode.PARAGRAPH) }
-    var fontSize by remember { mutableStateOf(BibleFontSize.MEDIUM) }
+    var fontSize by remember(initialFontSizeSp) {
+        mutableStateOf(
+            BibleFontSize.entries.firstOrNull { it.sp == initialFontSizeSp }
+                ?: BibleFontSize.MEDIUM
+        )
+    }
     var returnToBookIndex by remember { mutableStateOf<Int?>(null) }
     var returnToChapter by remember { mutableStateOf<Int?>(null) }
 
@@ -328,7 +335,12 @@ fun BibleReader(
                     val fontSizeIndex = fontSizes.indexOf(fontSize)
                     IconButton(
                         enabled = fontSizeIndex > 0,
-                        onClick = { haptics.selected { fontSize = fontSizes[fontSizeIndex - 1] } }
+                        onClick = {
+                            haptics.selected {
+                                fontSize = fontSizes[fontSizeIndex - 1]
+                                onFontSizeChange(fontSize.sp)
+                            }
+                        }
                     ) {
                         Text(
                             text = "Aa-",
@@ -342,7 +354,12 @@ fun BibleReader(
                     }
                     IconButton(
                         enabled = fontSizeIndex < fontSizes.lastIndex,
-                        onClick = { haptics.selected { fontSize = fontSizes[fontSizeIndex + 1] } }
+                        onClick = {
+                            haptics.selected {
+                                fontSize = fontSizes[fontSizeIndex + 1]
+                                onFontSizeChange(fontSize.sp)
+                            }
+                        }
                     ) {
                         Text(
                             text = "Aa+",

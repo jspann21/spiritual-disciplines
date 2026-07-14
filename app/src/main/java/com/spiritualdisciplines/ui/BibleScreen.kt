@@ -56,6 +56,7 @@ fun BibleScreen(viewModel: MainViewModel) {
     val readingPlanId by viewModel.readingPlanId.collectAsStateWithLifecycle()
     val startDateEpoch by viewModel.readingPlanStartDate.collectAsStateWithLifecycle()
     val preferredTranslation by viewModel.preferences.bibleTranslation.collectAsStateWithLifecycle(initialValue = "NIV")
+    val preferredTextSize by viewModel.bibleTextSize.collectAsStateWithLifecycle()
     val allRecords by viewModel.allDailyRecords.collectAsStateWithLifecycle()
     
     var selectedTabIndex by remember { mutableIntStateOf(0) }
@@ -234,6 +235,8 @@ fun BibleScreen(viewModel: MainViewModel) {
             Box(modifier = Modifier.padding(padding).fillMaxSize()) {
                 BibleReader(
                     translation = preferredTranslation,
+                    initialFontSizeSp = preferredTextSize,
+                    onFontSizeChange = viewModel.preferences::setBibleTextSize,
                     initialBook = readerInitialBook,
                     initialChapter = readerInitialChapter,
                     onClose = null,
