@@ -12,6 +12,8 @@ import com.spiritualdisciplines.data.JournalEntry
 import com.spiritualdisciplines.data.MemoryVerse
 import com.spiritualdisciplines.data.MemoryReviewScheduler
 import com.spiritualdisciplines.data.PrayerRequest
+import com.spiritualdisciplines.update.UpdateManager
+import com.spiritualdisciplines.update.UpdateUiState
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
@@ -21,7 +23,11 @@ import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
-class MainViewModel(private val repository: AppRepository, val preferences: AppPreferences) : ViewModel() {
+class MainViewModel(
+    private val repository: AppRepository,
+    val preferences: AppPreferences,
+    private val updateManager: UpdateManager
+) : ViewModel() {
 
     val themeMode: StateFlow<String> = preferences.themeMode
     val bibleFont: StateFlow<String> = preferences.bibleFont
@@ -41,6 +47,8 @@ class MainViewModel(private val repository: AppRepository, val preferences: AppP
     val notificationsEnabled: StateFlow<Boolean> = preferences.notificationsEnabled
     val notificationHour: StateFlow<Int> = preferences.notificationHour
     val notificationMinute: StateFlow<Int> = preferences.notificationMinute
+    val updateState: StateFlow<UpdateUiState> = updateManager.state
+    val currentVersionName: String = updateManager.currentVersionName
 
     val todayDateString: String = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
 
@@ -191,13 +199,27 @@ class MainViewModel(private val repository: AppRepository, val preferences: AppP
             onComplete()
         }
     }
+
+    fun checkForUpdates(manual: Boolean = true) {
+        viewModelScope.launch {
+            updateManager.check(manual)
+        }
+    }
+
+    fun clearUpdateStatus() {
+        updateManager.clearStatus()
+    }
 }
 
-class MainViewModelFactory(private val repository: AppRepository, private val preferences: AppPreferences) : ViewModelProvider.Factory {
+class MainViewModelFactory(
+    private val repository: AppRepository,
+    private val preferences: AppPreferences,
+    private val updateManager: UpdateManager
+) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(MainViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
-            return MainViewModel(repository, preferences) as T
+            return MainViewModel(repository, preferences, updateManager) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }

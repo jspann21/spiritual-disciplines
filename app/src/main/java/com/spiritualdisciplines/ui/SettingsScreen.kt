@@ -1,5 +1,7 @@
 package com.spiritualdisciplines.ui
 
+import android.Manifest
+import android.content.Intent
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -26,6 +28,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -60,7 +63,9 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.core.net.toUri
 import com.spiritualdisciplines.viewmodel.MainViewModel
+import com.spiritualdisciplines.update.UpdateUiState
 import com.spiritualdisciplines.ui.theme.AtkinsonHyperlegible
 import com.spiritualdisciplines.ui.theme.Literata
 import com.spiritualdisciplines.ui.theme.Merriweather
@@ -84,6 +89,7 @@ fun SettingsScreen(viewModel: MainViewModel, onBack: () -> Unit) {
     val notificationMinute by viewModel.notificationMinute.collectAsStateWithLifecycle()
     val accentColorInt by viewModel.accentColor.collectAsStateWithLifecycle()
     val cacheSizeBytes by viewModel.cacheSizeBytes.collectAsStateWithLifecycle()
+    val updateState by viewModel.updateState.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -500,6 +506,96 @@ fun SettingsScreen(viewModel: MainViewModel, onBack: () -> Unit) {
                         val hour12 = if (notificationHour % 12 == 0) 12 else notificationHour % 12
                         val minStr = notificationMinute.toString().padStart(2, '0')
                         Text("$hour12:$minStr $amPm", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+
+            // App Updates
+            Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                Text(
+                    "App Updates",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Check for updates", style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            "Installed version ${viewModel.currentVersionName}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    TextButton(
+                        enabled = updateState !is UpdateUiState.Checking,
+                        onClick = { viewModel.checkForUpdates(manual = true) }
+                    ) {
+                        if (updateState is UpdateUiState.Checking) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Text("Check now")
+                        }
+                    }
+                }
+
+                when (val state = updateState) {
+                    is UpdateUiState.UpToDate -> Text(
+                        "You're up to date with version ${state.currentVersionName}.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    is UpdateUiState.Error -> Text(
+                        state.message,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                    is UpdateUiState.Available -> TextButton(
+                        onClick = {
+                            context.startActivity(
+                                Intent(Intent.ACTION_VIEW, state.update.releaseUrl.toUri())
+                            )
+                            viewModel.clearUpdateStatus()
+                        }
+                    ) {
+                        Text("Download version ${state.update.versionName}")
+                    }
+                    UpdateUiState.Checking, UpdateUiState.Idle -> Unit
+                }
+
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU &&
+                    !hasNotificationPermission
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "Allow notifications to be alerted when a new version is available.",
+                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        TextButton(
+                            onClick = {
+                                permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                            }
+                        ) {
+                            Text("Allow")
+                        }
                     }
                 }
             }

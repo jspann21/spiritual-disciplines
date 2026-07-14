@@ -11,11 +11,13 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
 import androidx.compose.material.icons.automirrored.filled.Subject
 import androidx.compose.material.icons.filled.ArrowDropDown
@@ -28,6 +30,7 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -49,6 +52,7 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.BaselineShift
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextIndent
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
@@ -505,12 +509,30 @@ fun BibleReader(
                                 
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                                 ) {
                                     val hasPrev = selectedChapter > 1 || selectedBookIndex > 0
                                     val hasNext = selectedChapter < books[selectedBookIndex].chapters || selectedBookIndex < books.size - 1
+                                    val previousDestination = when {
+                                        selectedChapter > 1 -> "${books[selectedBookIndex].name} ${selectedChapter - 1}"
+                                        selectedBookIndex > 0 -> {
+                                            val previousBook = books[selectedBookIndex - 1]
+                                            "${previousBook.name} ${previousBook.chapters}"
+                                        }
+                                        else -> "Beginning"
+                                    }
+                                    val nextDestination = when {
+                                        selectedChapter < books[selectedBookIndex].chapters ->
+                                            "${books[selectedBookIndex].name} ${selectedChapter + 1}"
+                                        selectedBookIndex < books.size - 1 ->
+                                            "${books[selectedBookIndex + 1].name} 1"
+                                        else -> "End"
+                                    }
                                     
-                                    Button(
+                                    OutlinedButton(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .heightIn(min = 64.dp),
                                         shapes = ButtonDefaults.shapes(),
                                         onClick = {
                                             haptics.select()
@@ -524,10 +546,31 @@ fun BibleReader(
                                         },
                                         enabled = hasPrev
                                     ) {
-                                        Text("Previous")
+                                        Icon(
+                                            Icons.AutoMirrored.Filled.ArrowBack,
+                                            contentDescription = null
+                                        )
+                                        Column(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .padding(start = 8.dp),
+                                            horizontalAlignment = Alignment.Start
+                                        ) {
+                                            Text("Previous", style = MaterialTheme.typography.labelMedium)
+                                            Text(
+                                                previousDestination,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                fontWeight = FontWeight.SemiBold
+                                            )
+                                        }
                                     }
                                     
-                                    Button(
+                                    OutlinedButton(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .heightIn(min = 64.dp),
                                         shapes = ButtonDefaults.shapes(),
                                         onClick = {
                                             haptics.select()
@@ -541,7 +584,25 @@ fun BibleReader(
                                         },
                                         enabled = hasNext
                                     ) {
-                                        Text("Next")
+                                        Column(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .padding(end = 8.dp),
+                                            horizontalAlignment = Alignment.End
+                                        ) {
+                                            Text("Next", style = MaterialTheme.typography.labelMedium)
+                                            Text(
+                                                nextDestination,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                fontWeight = FontWeight.SemiBold
+                                            )
+                                        }
+                                        Icon(
+                                            Icons.AutoMirrored.Filled.ArrowForward,
+                                            contentDescription = null
+                                        )
                                     }
                                 }
                             }
