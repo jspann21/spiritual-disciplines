@@ -79,6 +79,24 @@ The Journal tab gives simple prompts for daily reflection:
 
 Settings include light, dark, or system theme; accent color; Bible translation; reading plan; plan start date or current plan day; dashboard item toggles; daily reminders; and cached Bible content management.
 
+## Changelog
+
+### 1.1.0 — July 14, 2026
+
+- Added automatic, background, and manual GitHub release update checks.
+- Redesigned Bible reader chapter navigation with symmetrical controls and destination labels.
+- Persisted Bible reader font size and streamlined discipline screen headers.
+
+### 1.0.1 — July 12, 2026
+
+- Expanded the Bible reader with improved book and chapter selection, typography, and paragraph rendering.
+- Added Bible font choices, memory review scheduling, expressive haptics, and SBL book abbreviations.
+- Improved cache, network, database, rendering, and release-build performance and reliability.
+
+### 1.0.0 — June 25, 2026
+
+- Initial release with daily discipline tracking, Bible reading plans, prayer requests, Scripture memory, journaling, reminders, and personalization.
+
 ## Purpose
 
 The app is designed to stay quiet and practical: open it, see the next faithful step, record what was done, and keep moving through the daily rhythm without needing several separate tools.
