@@ -69,6 +69,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.window.Dialog
+import androidx.core.text.HtmlCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.spiritualdisciplines.data.BibleBooks
 import com.spiritualdisciplines.data.BibleVerseCounts
@@ -318,13 +319,21 @@ fun hideWord(word: String): String {
 }
 
 fun toFillInTheBlanks(text: String, hidePercentage: Float = 0.4f): String {
-    val wordsList = text.split(" ")
-    val hideCount = (wordsList.size * hidePercentage).toInt().coerceAtLeast(1)
-    val hideIndices = wordsList.indices.shuffled().take(hideCount).toSet()
+    val words = Regex("\\S+").findAll(text).toList()
+    if (words.isEmpty()) return text
 
-    return wordsList.mapIndexed { index, word ->
-        if (hideIndices.contains(index)) hideWord(word) else word
-    }.joinToString(" ")
+    val hideCount = (words.size * hidePercentage).toInt().coerceAtLeast(1)
+    val hideIndices = words.indices.shuffled().take(hideCount).toSet()
+    var cursor = 0
+
+    return buildString {
+        words.forEachIndexed { index, match ->
+            append(text, cursor, match.range.first)
+            append(if (index in hideIndices) hideWord(match.value) else match.value)
+            cursor = match.range.last + 1
+        }
+        append(text, cursor, text.length)
+    }
 }
 
 private data class LastMemoryReview(val verse: MemoryVerse, val days: Int)
@@ -415,7 +424,7 @@ fun PracticeView(
     }
 
     val currentVerse = verses.firstOrNull { it.id == sessionIds[currentIndex] } ?: return
-    val displayVerseText = remember(currentVerse.id, mode, showAnswer, blanksSeed) {
+    val displayVerseText = remember(currentVerse.text, mode, showAnswer, blanksSeed) {
         when {
             showAnswer || mode == "Study" -> currentVerse.text
             mode == "First letters" -> toFirstLetter(currentVerse.text)
@@ -659,19 +668,94 @@ private suspend fun fetchMemoryVerses(
         if (returnedVerses.length() != verses.size) {
             error("Bolls returned ${returnedVerses.length()} of ${verses.size} requested verses")
         }
-        buildList {
+        val rawVerses = buildList {
             for (i in 0 until returnedVerses.length()) {
-                add(
-                    returnedVerses.getJSONObject(i).getString("text")
-                        .replace(Regex("<.*?>"), "")
-                        .trim()
-                )
+                add(returnedVerses.getJSONObject(i).getString("text"))
             }
-        }.joinToString(" ")
+        }
+
+        buildString {
+            rawVerses.forEachIndexed { index, rawVerse ->
+                if (index > 0) {
+                    append(if (rawVerses[index - 1].hasTrailingMemoryLineBreak()) '\n' else ' ')
+                }
+                append(cleanMemoryVerseHtml(rawVerse))
+            }
+        }.let(::normalizeMemoryVerseWhitespace)
     } finally {
         connection.disconnect()
     }
 }
+
+private fun cleanMemoryVerseHtml(rawHtml: String): String {
+    val withoutHeading = rawHtml.removeLeadingMemoryHeading()
+    val layoutAwareHtml = withoutHeading
+        .replace(Regex("(?is)<sup\\b[^>]*>.*?</sup>"), "")
+        .replace(Regex("(?is)<S\\b[^>]*>.*?</S>"), "")
+        .replace(Regex("(?i)<br\\s*/?>"), "\n")
+        .replace(Regex("(?i)</p\\s*>"), "\n")
+        .replace(Regex("(?i)<p\\b[^>]*>"), "")
+        .replace(Regex("(?i)</div\\s*>"), "\n")
+        .replace(Regex("(?i)<div\\b[^>]*>"), "")
+
+    return HtmlCompat.fromHtml(layoutAwareHtml, HtmlCompat.FROM_HTML_MODE_LEGACY)
+        .toString()
+        // Some source records omit a separator around layout tags, such as
+        // "A Psalm of David.Yahweh". This applies only while fetching.
+        .replace(Regex("(?<=[\\p{Ll}\\p{N}.,;:!?])(?=[\\p{Lu}“‘])"), "\n")
+        .let(::normalizeMemoryVerseWhitespace)
+}
+
+private fun String.removeLeadingMemoryHeading(): String {
+    val explicitHeading = Regex(
+        "(?is)^\\s*<(b|strong)\\b[^>]*>.*?</\\1>\\s*<br\\s*/?>"
+    )
+    if (explicitHeading.containsMatchIn(this)) {
+        return replaceFirst(explicitHeading, "")
+    }
+
+    val plainHeading = Regex("(?is)^\\s*([^<\\n]{1,90})<br\\s*/?>").find(this)
+        ?: return this
+    val headingText = HtmlCompat.fromHtml(
+        plainHeading.groupValues[1],
+        HtmlCompat.FROM_HTML_MODE_LEGACY
+    ).toString().trim()
+
+    return if (isLikelyMemoryHeading(headingText)) {
+        removeRange(plainHeading.range)
+    } else {
+        this
+    }
+}
+
+private fun isLikelyMemoryHeading(text: String): Boolean {
+    if (text.isBlank() || text.length > 90) return false
+    if (text.last() in listOf('.', ',', ';', ':', '?', '!', '”', '"')) return false
+
+    val significantWords = Regex("[\\p{L}\\p{N}’']+")
+        .findAll(text)
+        .map { it.value }
+        .filter { it.length > 3 }
+        .toList()
+    if (significantWords.isEmpty()) return false
+
+    val titleLikeWords = significantWords.count { word ->
+        word.firstOrNull()?.isUpperCase() == true ||
+            word.all { it.isUpperCase() || !it.isLetter() }
+    }
+    return titleLikeWords.toFloat() / significantWords.size >= 0.75f
+}
+
+private fun String.hasTrailingMemoryLineBreak(): Boolean =
+    Regex("(?is)<br\\s*/?>\\s*$").containsMatchIn(this)
+
+private fun normalizeMemoryVerseWhitespace(text: String): String = text
+    .replace("\r\n", "\n")
+    .replace('\r', '\n')
+    .replace(Regex("[ \\t]+"), " ")
+    .replace(Regex(" *\\n *"), "\n")
+    .replace(Regex("\\n{2,}"), "\n")
+    .trim()
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -886,7 +970,10 @@ fun AddVerseDialog(translation: String, onDismiss: () -> Unit, onAdd: (String, S
                             } else if (stage == PickerStage.REVIEW) {
                                 Button(shapes = ButtonDefaults.shapes(), onClick = {
                                     if (fetchedReference.isNotBlank() && fetchedText.isNotBlank()) {
-                                        onAdd(fetchedReference, fetchedText)
+                                        onAdd(
+                                            fetchedReference,
+                                            normalizeMemoryVerseWhitespace(fetchedText)
+                                        )
                                     }
                                 }) {
                                     Text("Save")
