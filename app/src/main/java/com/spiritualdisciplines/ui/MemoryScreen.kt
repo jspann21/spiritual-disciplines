@@ -223,7 +223,7 @@ private fun MemoryLibrary(
                     Spacer(Modifier.height(6.dp))
                     Text("Choose a passage you want to carry with you.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.height(16.dp))
-                    Button(onClick = { haptics.pressed(onAdd) }, shapes = ButtonDefaults.shapes()) { Text("Add a verse") }
+                    Button(onClick = { haptics.pressed(onAdd) }, shapes = ButtonDefaults.shapes()) { Text("Add verse") }
                 }
             }
         } else {

@@ -153,7 +153,7 @@ fun BibleScreen(viewModel: MainViewModel) {
                             contentPadding = PaddingValues(0.dp),
                             modifier = Modifier.height(32.dp)
                         ) {
-                            Text("Catch up from Day $nextPlanDay")
+                            Text("Catch up from day $nextPlanDay")
                         }
                     }
                 }

@@ -130,7 +130,7 @@ fun PrayerScreen(viewModel: MainViewModel) {
         floatingActionButton = {
             if (selectedTabIndex == 0) {
                 FloatingActionButton(onClick = { haptics.pressed { showDialog = true } }) {
-                    Icon(Icons.Default.Add, contentDescription = "Add Prayer")
+                    Icon(Icons.Default.Add, contentDescription = "Add prayer")
                 }
             }
         }
@@ -152,7 +152,7 @@ fun PrayerScreen(viewModel: MainViewModel) {
                 ) {
                     Icon(Icons.Default.PlayArrow, contentDescription = null)
                     Spacer(Modifier.width(8.dp))
-                    Text("Start Prayer Session (${unprayedRequests.size})")
+                    Text("Start prayer session (${unprayedRequests.size})")
                 }
             }
 
@@ -250,9 +250,9 @@ fun PrayerScreen(viewModel: MainViewModel) {
                                 if (isPrayed) {
                                     Icon(Icons.Default.Check, contentDescription = null)
                                     Spacer(Modifier.width(8.dp))
-                                    Text("Prayed Today")
+                                    Text("Prayed today")
                                 } else {
-                                    Text("Mark as Prayed")
+                                    Text("Mark as prayed")
                                 }
                             }
                         }
@@ -351,10 +351,10 @@ fun PrayerSessionScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Prayer Session") },
+                title = { Text("Prayer session") },
                 navigationIcon = {
                     IconButton(onClick = onClose) {
-                        Icon(Icons.Default.Close, contentDescription = "End Session")
+                        Icon(Icons.Default.Close, contentDescription = "End session")
                     }
                 }
             )
@@ -477,7 +477,7 @@ fun PrayerSessionScreen(
                         } else {
                             Icon(Icons.Default.Check, contentDescription = null)
                             Spacer(Modifier.width(8.dp))
-                            Text(if (pagerState.currentPage == requests.size - 1) "Finish" else "Mark & Next", fontSize = 16.sp)
+                            Text(if (pagerState.currentPage == requests.size - 1) "Finish" else "Mark and next", fontSize = 16.sp)
                         }
                     }
                 }
@@ -523,7 +523,7 @@ fun PrayerDialog(
                     .systemBarsPadding()
             ) {
                 TopAppBar(
-                    title = { Text(if (isEdit) "Edit Prayer Request" else "Add Prayer Request") },
+                    title = { Text(if (isEdit) "Edit prayer request" else "Add prayer request") },
                     navigationIcon = {
                         IconButton(onClick = onDismiss) {
                             Icon(Icons.Default.Close, contentDescription = "Close")
