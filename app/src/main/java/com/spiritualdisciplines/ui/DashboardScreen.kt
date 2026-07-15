@@ -50,13 +50,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.spiritualdisciplines.data.CachedVerse
+import com.spiritualdisciplines.network.BollsBibleApi
+import com.spiritualdisciplines.network.BollsVerseRequest
 import com.spiritualdisciplines.viewmodel.MainViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.json.JSONArray
-import org.json.JSONObject
-import java.net.HttpURLConnection
-import java.net.URL
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Calendar
@@ -95,67 +93,34 @@ fun DashboardScreen(viewModel: MainViewModel, onSettingsClick: () -> Unit) {
             }
 
             try {
-                val url = URL("https://bolls.life/get-verses/")
-                val connection = url.openConnection() as HttpURLConnection
-                try {
-                    connection.requestMethod = "POST"
-                    connection.setRequestProperty("Content-Type", "application/json")
-                    connection.setRequestProperty("User-Agent", "Mozilla/5.0")
-                    connection.doOutput = true
-                    connection.connectTimeout = 5000
-                    connection.readTimeout = 5000
+                val verseItems = BollsBibleApi.fetchVerseGroups(
+                    listOf(
+                        BollsVerseRequest(
+                            translation = bibleTranslation,
+                            bookId = dailyVerse.book,
+                            chapter = dailyVerse.chapter,
+                            verses = listOf(dailyVerse.verse)
+                        )
+                    )
+                ).firstOrNull().orEmpty()
 
-                    val reqObj = JSONObject()
-                    reqObj.put("translation", bibleTranslation)
-                    reqObj.put("book", dailyVerse.book)
-                    reqObj.put("chapter", dailyVerse.chapter)
-                    val versesArray = JSONArray()
-                    versesArray.put(dailyVerse.verse)
-                    reqObj.put("verses", versesArray)
-
-                    val rootArray = JSONArray().put(reqObj)
-
-                    connection.outputStream.use { os ->
-                        val input = rootArray.toString().toByteArray(Charsets.UTF_8)
-                        os.write(input, 0, input.size)
+                if (verseItems.isEmpty()) {
+                    null to "Translation might not be supported"
+                } else {
+                    val fetchedText = verseItems.joinToString(" ") { rawText ->
+                        rawText.replace(Regex("<.*?>"), "").trim()
                     }
-
-                    if (connection.responseCode == 200) {
-                        val response = connection.inputStream.bufferedReader().use { it.readText() }
-                        val resArray = JSONArray(response)
-                        if (resArray.length() > 0) {
-                            val verseItems = resArray.getJSONArray(0)
-                            if (verseItems.length() > 0) {
-                                val sb = StringBuilder()
-                                for (i in 0 until verseItems.length()) {
-                                    val vObj = verseItems.getJSONObject(i)
-                                    val vText = vObj.getString("text").replace(Regex("<.*?>"), "").trim()
-                                    sb.append(vText).append(" ")
-                                }
-                                val fetchedText = sb.toString().trim()
-
-                                viewModel.insertCachedVerse(
-                                    CachedVerse(
-                                        id = cacheId,
-                                        translation = bibleTranslation,
-                                        bookId = dailyVerse.book,
-                                        chapter = dailyVerse.chapter,
-                                        verse = dailyVerse.verse,
-                                        text = fetchedText
-                                    )
-                                )
-                                fetchedText to null
-                            } else {
-                                null to "Translation might not be supported"
-                            }
-                        } else {
-                            null to "Translation might not be supported"
-                        }
-                    } else {
-                        null to "Error: ${connection.responseCode}"
-                    }
-                } finally {
-                    connection.disconnect()
+                    viewModel.insertCachedVerse(
+                        CachedVerse(
+                            id = cacheId,
+                            translation = bibleTranslation,
+                            bookId = dailyVerse.book,
+                            chapter = dailyVerse.chapter,
+                            verse = dailyVerse.verse,
+                            text = fetchedText
+                        )
+                    )
+                    fetchedText to null
                 }
             } catch (_: Exception) {
                 null to "Could not load verse. Please check your internet connection."

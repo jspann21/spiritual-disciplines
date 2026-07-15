@@ -77,14 +77,10 @@ import com.spiritualdisciplines.data.BibleBooks
 import com.spiritualdisciplines.data.BibleVerseCounts
 import com.spiritualdisciplines.data.MemoryVerse
 import com.spiritualdisciplines.data.MemoryReviewScheduler
+import com.spiritualdisciplines.network.BollsBibleApi
+import com.spiritualdisciplines.network.BollsVerseRequest
 import com.spiritualdisciplines.viewmodel.MainViewModel
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import org.json.JSONArray
-import org.json.JSONObject
-import java.net.HttpURLConnection
-import java.net.URL
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -671,55 +667,29 @@ private suspend fun fetchMemoryVerses(
     bookId: Int,
     chapter: Int,
     verses: List<Int>
-): String = withContext(Dispatchers.IO) {
-    val url = URL("https://bolls.life/get-verses/")
-    val connection = url.openConnection() as HttpURLConnection
-    try {
-        connection.requestMethod = "POST"
-        connection.setRequestProperty("Content-Type", "application/json")
-        connection.setRequestProperty("User-Agent", "SpiritualDisciplines/1.0")
-        connection.doOutput = true
-        connection.connectTimeout = 10_000
-        connection.readTimeout = 10_000
-
-        val request = JSONObject().apply {
-            put("translation", translation)
-            put("book", bookId)
-            put("chapter", chapter)
-            put("verses", JSONArray(verses))
-        }
-        val requestBody = JSONArray().put(request).toString().toByteArray(Charsets.UTF_8)
-        connection.outputStream.use { it.write(requestBody) }
-
-        val responseCode = connection.responseCode
-        if (responseCode != HttpURLConnection.HTTP_OK) {
-            error("Bolls returned HTTP $responseCode")
-        }
-
-        val response = connection.inputStream.bufferedReader().use { it.readText() }
-        val groups = JSONArray(response)
-        if (groups.length() == 0) error("Bolls returned no verse groups")
-        val returnedVerses = groups.getJSONArray(0)
-        if (returnedVerses.length() != verses.size) {
-            error("Bolls returned ${returnedVerses.length()} of ${verses.size} requested verses")
-        }
-        val rawVerses = buildList {
-            for (i in 0 until returnedVerses.length()) {
-                add(returnedVerses.getJSONObject(i).getString("text"))
-            }
-        }
-
-        buildString {
-            rawVerses.forEachIndexed { index, rawVerse ->
-                if (index > 0) {
-                    append(if (rawVerses[index - 1].hasTrailingMemoryLineBreak()) '\n' else ' ')
-                }
-                append(cleanMemoryVerseHtml(rawVerse))
-            }
-        }.let(::normalizeMemoryVerseWhitespace)
-    } finally {
-        connection.disconnect()
+): String {
+    val rawVerses = BollsBibleApi.fetchVerseGroups(
+        listOf(
+            BollsVerseRequest(
+                translation = translation,
+                bookId = bookId,
+                chapter = chapter,
+                verses = verses
+            )
+        )
+    ).firstOrNull() ?: error("Bolls returned no verse groups")
+    if (rawVerses.size != verses.size) {
+        error("Bolls returned ${rawVerses.size} of ${verses.size} requested verses")
     }
+
+    return buildString {
+        rawVerses.forEachIndexed { index, rawVerse ->
+            if (index > 0) {
+                append(if (rawVerses[index - 1].hasTrailingMemoryLineBreak()) '\n' else ' ')
+            }
+            append(cleanMemoryVerseHtml(rawVerse))
+        }
+    }.let(::normalizeMemoryVerseWhitespace)
 }
 
 private fun cleanMemoryVerseHtml(rawHtml: String): String {

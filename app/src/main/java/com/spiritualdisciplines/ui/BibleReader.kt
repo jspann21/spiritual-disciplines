@@ -60,6 +60,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.text.HtmlCompat
 import com.spiritualdisciplines.data.BibleBooks
 import com.spiritualdisciplines.data.CachedChapter
+import com.spiritualdisciplines.network.BollsBibleApi
 import com.spiritualdisciplines.ui.theme.LocalBibleFontFamily
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -68,8 +69,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
-import java.net.HttpURLConnection
-import java.net.URL
 import java.util.concurrent.atomic.AtomicReference
 
 enum class BibleReaderState {
@@ -196,47 +195,32 @@ fun BibleReader(
                             isLoading = false
                         }
                     } else {
-                        val urlString = "https://bolls.life/get-chapter/$translation/$bookId/$chapter/"
-                        val url = URL(urlString)
-                        val connection = url.openConnection() as HttpURLConnection
-                        try {
-                            connection.requestMethod = "GET"
-                            connection.connectTimeout = 5000
-                            connection.readTimeout = 5000
+                        val response = BollsBibleApi.fetchChapter(
+                            translation = translation,
+                            bookId = bookId,
+                            chapter = chapter
+                        )
+                        val paragraphBreaks = fetchParagraphBreakVerseNumbers(
+                            translation = translation,
+                            bookId = bookId,
+                            chapter = chapter,
+                            paragraphBreakIndex = paragraphBreakIndex
+                        )
+                        val verses = parseChapterVerses(response.verses, paragraphBreaks)
 
-                            if (connection.responseCode == 200) {
-                                val response = connection.inputStream.bufferedReader().use { it.readText() }
-                                val jsonArray = JSONArray(response)
-                                val paragraphBreaks = fetchParagraphBreakVerseNumbers(
-                                    translation = translation,
-                                    bookId = bookId,
-                                    chapter = chapter,
-                                    paragraphBreakIndex = paragraphBreakIndex
-                                )
-                                val verses = parseChapterVerses(jsonArray, paragraphBreaks)
+                        insertCachedChapter(
+                            CachedChapter(
+                                id = cacheId,
+                                translation = translation,
+                                bookId = bookId,
+                                chapter = chapter,
+                                versesJson = response.rawJson
+                            )
+                        )
 
-                                // Save to cache
-                                val newCachedChapter = CachedChapter(
-                                    id = cacheId,
-                                    translation = translation,
-                                    bookId = bookId,
-                                    chapter = chapter,
-                                    versesJson = response
-                                )
-                                insertCachedChapter(newCachedChapter)
-
-                                withContext(Dispatchers.Main) {
-                                    chapterContent = verses
-                                    isLoading = false
-                                }
-                            } else {
-                                withContext(Dispatchers.Main) {
-                                    error = "Failed to load chapter. ($translation might not be supported)"
-                                    isLoading = false
-                                }
-                            }
-                        } finally {
-                            connection.disconnect()
+                        withContext(Dispatchers.Main) {
+                            chapterContent = verses
+                            isLoading = false
                         }
                     }
                 } catch (e: CancellationException) {

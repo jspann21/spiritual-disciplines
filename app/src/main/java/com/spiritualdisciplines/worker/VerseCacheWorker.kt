@@ -12,15 +12,13 @@ import com.spiritualdisciplines.data.AppDatabase
 import com.spiritualdisciplines.data.AppPreferences
 import com.spiritualdisciplines.data.AppRepository
 import com.spiritualdisciplines.data.CachedVerse
+import com.spiritualdisciplines.network.BollsBibleApi
+import com.spiritualdisciplines.network.BollsVerseRequest
 import com.spiritualdisciplines.ui.DailyVerse
 import com.spiritualdisciplines.ui.dailyVerses
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
-import org.json.JSONArray
-import org.json.JSONObject
-import java.net.HttpURLConnection
-import java.net.URL
 import java.util.Calendar
 import java.util.concurrent.TimeUnit
 
@@ -73,51 +71,24 @@ class VerseCacheWorker(
         val missingTargets = targets.filterNot { it.cacheId in cachedIds }
         if (missingTargets.isEmpty()) return cachedIds
 
-        val rootArray = JSONArray()
-        missingTargets.forEach { target ->
-            rootArray.put(
-                JSONObject().apply {
-                    put("translation", translation)
-                    put("book", target.verse.book)
-                    put("chapter", target.verse.chapter)
-                    put("verses", JSONArray().put(target.verse.verse))
+        return try {
+            val responseGroups = BollsBibleApi.fetchVerseGroups(
+                missingTargets.map { target ->
+                    BollsVerseRequest(
+                        translation = translation,
+                        bookId = target.verse.book,
+                        chapter = target.verse.chapter,
+                        verses = listOf(target.verse.verse)
+                    )
                 }
             )
-        }
-
-        val connection = URL("https://bolls.life/get-verses/").openConnection() as HttpURLConnection
-        return try {
-            connection.requestMethod = "POST"
-            connection.setRequestProperty("Content-Type", "application/json")
-            connection.setRequestProperty("User-Agent", "Mozilla/5.0")
-            connection.doOutput = true
-            connection.connectTimeout = 5000
-            connection.readTimeout = 5000
-            
-            connection.outputStream.use { os ->
-                val input = rootArray.toString().toByteArray(Charsets.UTF_8)
-                os.write(input, 0, input.size)
-            }
-
-            if (connection.responseCode != HttpURLConnection.HTTP_OK) return cachedIds
-
-            val response = connection.inputStream.bufferedReader().use { it.readText() }
-            val responseGroups = JSONArray(response)
             val fetchedIds = buildList {
                 missingTargets.forEachIndexed { index, target ->
-                    if (index >= responseGroups.length()) return@forEachIndexed
-                    val verseItems = responseGroups.getJSONArray(index)
-                    if (verseItems.length() == 0) return@forEachIndexed
+                    val verseItems = responseGroups.getOrNull(index).orEmpty()
+                    if (verseItems.isEmpty()) return@forEachIndexed
 
-                    val text = buildString {
-                        for (i in 0 until verseItems.length()) {
-                            if (isNotEmpty()) append(' ')
-                            append(
-                                verseItems.getJSONObject(i).getString("text")
-                                    .replace(HTML_TAG_REGEX, "")
-                                    .trim()
-                            )
-                        }
+                    val text = verseItems.joinToString(" ") { rawText ->
+                        rawText.replace(HTML_TAG_REGEX, "").trim()
                     }
                     repository.insertCachedVerse(
                         CachedVerse(
@@ -135,8 +106,6 @@ class VerseCacheWorker(
             cachedIds + fetchedIds
         } catch (_: Exception) {
             cachedIds
-        } finally {
-            connection.disconnect()
         }
     }
 
