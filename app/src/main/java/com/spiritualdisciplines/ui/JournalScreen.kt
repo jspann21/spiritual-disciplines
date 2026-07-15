@@ -25,7 +25,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoStories
-import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.Search
@@ -195,9 +194,13 @@ private fun JournalEditor(
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 28.dp)
     ) {
         item {
-            CompactDateNavigator(
-                date = selectedDate,
-                today = today,
+            DisciplineDateNavigator(
+                title = selectedDate.format(journalDateFormatter),
+                isToday = selectedDate == today,
+                canGoPrevious = true,
+                canGoNext = selectedDate < today,
+                previousContentDescription = "Previous day",
+                nextContentDescription = "Next day",
                 onPrevious = { onDateChange(selectedDate.minusDays(1)) },
                 onNext = { onDateChange(selectedDate.plusDays(1)) },
                 onToday = { onDateChange(today) }
@@ -248,43 +251,6 @@ private fun JournalEditor(
                 onValueChange = { fieldValue = it },
                 modifier = Modifier.padding(top = 10.dp)
             )
-        }
-    }
-}
-
-@Composable
-private fun CompactDateNavigator(
-    date: LocalDate,
-    today: LocalDate,
-    onPrevious: () -> Unit,
-    onNext: () -> Unit,
-    onToday: () -> Unit
-) {
-    val haptics = rememberExpressiveHaptics()
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(Modifier.weight(1f)) {
-            Text(
-                text = date.format(journalDateFormatter),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold
-            )
-            if (date != today) {
-                Text(
-                    text = "Back to today",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.clickable { haptics.selected(onToday) }.padding(top = 2.dp)
-                )
-            }
-        }
-        IconButton(onClick = { haptics.selected(onPrevious) }) {
-            Icon(Icons.Default.ChevronLeft, contentDescription = "Previous day")
-        }
-        IconButton(onClick = { haptics.selected(onNext) }, enabled = date < today) {
-            Icon(Icons.Default.ChevronRight, contentDescription = "Next day")
         }
     }
 }

@@ -14,8 +14,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
-import androidx.compose.material.icons.filled.ChevronLeft
-import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -160,12 +158,18 @@ fun BibleScreen(viewModel: MainViewModel) {
                 
                 DisciplineCard(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        ReadingDayNavigator(
-                            planDay = selectedPlanDay,
-                            date = selectedDate,
+                        DisciplineDateNavigator(
+                            title = "Day $selectedPlanDay",
+                            subtitle = if (selectedPlanDay == dayOfYear) {
+                                "Today"
+                            } else {
+                                selectedDate.format(readingDateFormatter)
+                            },
                             isToday = selectedPlanDay == dayOfYear,
-                            canGoBack = selectedPlanDay > 1,
-                            canGoForward = selectedPlanDay < dayOfYear,
+                            canGoPrevious = selectedPlanDay > 1,
+                            canGoNext = selectedPlanDay < dayOfYear,
+                            previousContentDescription = "Previous reading day",
+                            nextContentDescription = "Next reading day",
                             onPrevious = { selectedPlanDay-- },
                             onNext = { selectedPlanDay++ },
                             onToday = { selectedPlanDay = dayOfYear }
@@ -234,64 +238,6 @@ fun BibleScreen(viewModel: MainViewModel) {
                     insertCachedChapter = { chapter -> viewModel.insertCachedChapter(chapter) }
                 )
             }
-        }
-    }
-}
-
-@Composable
-private fun ReadingDayNavigator(
-    planDay: Int,
-    date: LocalDate,
-    isToday: Boolean,
-    canGoBack: Boolean,
-    canGoForward: Boolean,
-    onPrevious: () -> Unit,
-    onNext: () -> Unit,
-    onToday: () -> Unit
-) {
-    val haptics = rememberExpressiveHaptics()
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        IconButton(
-            onClick = { haptics.selected(onPrevious) },
-            enabled = canGoBack
-        ) {
-            Icon(Icons.Default.ChevronLeft, contentDescription = "Previous reading day")
-        }
-        Column(
-            modifier = Modifier.weight(1f),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                "Day $planDay",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary
-            )
-            if (isToday) {
-                Text("Today", style = MaterialTheme.typography.bodySmall)
-            } else {
-                Text(
-                    date.format(readingDateFormatter),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    "Back to today",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier
-                        .clickable { haptics.selected(onToday) }
-                        .padding(top = 2.dp)
-                )
-            }
-        }
-        IconButton(
-            onClick = { haptics.selected(onNext) },
-            enabled = canGoForward
-        ) {
-            Icon(Icons.Default.ChevronRight, contentDescription = "Next reading day")
         }
     }
 }
