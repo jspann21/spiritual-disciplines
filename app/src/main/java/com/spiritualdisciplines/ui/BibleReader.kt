@@ -188,7 +188,6 @@ fun BibleReader(
                             translation = translation,
                             bookId = bookId,
                             chapter = chapter,
-                            currentChapterJson = jsonArray,
                             paragraphBreakIndex = paragraphBreakIndex
                         )
                         val verses = parseChapterVerses(jsonArray, paragraphBreaks)
@@ -212,7 +211,6 @@ fun BibleReader(
                                     translation = translation,
                                     bookId = bookId,
                                     chapter = chapter,
-                                    currentChapterJson = jsonArray,
                                     paragraphBreakIndex = paragraphBreakIndex
                                 )
                                 val verses = parseChapterVerses(jsonArray, paragraphBreaks)
@@ -618,11 +616,8 @@ private fun fetchParagraphBreakVerseNumbers(
     translation: String,
     bookId: Int,
     chapter: Int,
-    currentChapterJson: JSONArray,
     paragraphBreakIndex: ParagraphBreakIndex
-): Set<Int> =
-    extractParagraphBreakVerseNumbers(currentChapterJson) +
-        paragraphBreakIndex.breaksFor(translation, bookId, chapter)
+): Set<Int> = paragraphBreakIndex.breaksFor(translation, bookId, chapter)
 
 private class ParagraphBreakIndex private constructor(
     private val metadata: JSONObject
@@ -652,20 +647,6 @@ private class ParagraphBreakIndex private constructor(
     }
 }
 
-private fun extractParagraphBreakVerseNumbers(jsonArray: JSONArray): Set<Int> {
-    val breakVerses = mutableSetOf<Int>()
-
-    for (i in 1 until jsonArray.length()) {
-        val verseObj = jsonArray.getJSONObject(i)
-        val rawText = verseObj.getString("text")
-        if (hasParagraphBreak(rawText)) {
-            breakVerses.add(verseObj.getInt("verse"))
-        }
-    }
-
-    return breakVerses
-}
-
 private fun parseChapterVerses(
     jsonArray: JSONArray,
     paragraphBreakVerseNumbers: Set<Int> = emptySet()
@@ -682,7 +663,7 @@ private fun parseChapterVerses(
                 number = verseObj.getInt("verse"),
                 text = cleanedText,
                 startsParagraph = i > 0 &&
-                    (hasParagraphBreak(rawText) || paragraphBreakVerseNumbers.contains(verseObj.getInt("verse"))),
+                    paragraphBreakVerseNumbers.contains(verseObj.getInt("verse")),
                 heading = heading
             )
         )
@@ -708,16 +689,6 @@ private fun cleanBibleHtml(rawHtml: String): String {
         .replace(Regex(" *\n *"), "\n")
         .replace(Regex("\n{3,}"), "\n\n")
         .trim()
-}
-
-private fun hasParagraphBreak(rawHtml: String): Boolean {
-    val trimmed = rawHtml.trimStart()
-
-    return trimmed.contains(Regex("(?i)^<(b|strong)\\b")) ||
-        extractLeadingHeading(rawHtml) != null ||
-        trimmed.contains(Regex("(?i)^<p\\b")) ||
-        trimmed.contains(Regex("(?i)</p\\s*>\\s*<p\\b")) ||
-        trimmed.contains(Regex("(?i)<br\\s*/?>\\s*<br\\s*/?>"))
 }
 
 private fun extractLeadingHeading(rawHtml: String): String? {
@@ -830,8 +801,7 @@ private const val PARAGRAPH_BREAK_ASSET = "bible_paragraph_breaks.json"
 private val BUNDLED_PARAGRAPH_VERSIONS = mapOf(
     "ESV" to "ESV",
     "NIV" to "NIV",
-    // The available KJV layout is verse-by-verse, so use ESV's editorial paragraphs.
-    "KJV" to "ESV",
+    "KJV" to "KJV",
     "NKJV" to "NKJV",
     "NLT" to "NLT",
     "NASB" to "NASB",
