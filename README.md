@@ -81,6 +81,12 @@ Settings include light, dark, or system theme; accent color; Bible translation; 
 
 ## Changelog
 
+### 1.2.0 — July 15, 2026
+
+- Unified discipline tabs with consistent top controls, date navigation, cards, actions, and empty states.
+- Improved Bible reading, prayer, memory, and journal behavior while fixing request races and parsing issues.
+- Added Android data backup and strengthened networking, background work, cache handling, and app icons.
+
 ### 1.1.0 — July 14, 2026
 
 - Added automatic, background, and manual GitHub release update checks.
