@@ -107,7 +107,7 @@ fun MemoryScreen(viewModel: MainViewModel) {
             )
         },
         floatingActionButton = {
-            if (selectedTab == 0) {
+            if (selectedTab == 0 && verses.isNotEmpty()) {
                 FloatingActionButton(onClick = { haptics.pressed { showDialog = true } }) {
                     Icon(Icons.Default.Add, contentDescription = "Add verse")
                 }

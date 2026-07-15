@@ -128,7 +128,7 @@ fun PrayerScreen(viewModel: MainViewModel) {
             )
         },
         floatingActionButton = {
-            if (selectedTabIndex == 0) {
+            if (selectedTabIndex == 0 && filteredRequests.isNotEmpty()) {
                 FloatingActionButton(onClick = { haptics.pressed { showDialog = true } }) {
                     Icon(Icons.Default.Add, contentDescription = "Add prayer")
                 }
