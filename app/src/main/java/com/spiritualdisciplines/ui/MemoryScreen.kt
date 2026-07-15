@@ -28,9 +28,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.outlined.Lightbulb
@@ -40,6 +40,8 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
@@ -254,6 +256,7 @@ private fun MemoryLibrary(
             }
         } else {
             items(verses, key = { it.id }) { verse ->
+                var menuExpanded by remember(verse.id) { mutableStateOf(false) }
                 DisciplineCard(
                     onClick = { haptics.selected { onPracticeVerse(verse.id) } },
                     modifier = Modifier.fillMaxWidth()
@@ -279,8 +282,26 @@ private fun MemoryLibrary(
                                 color = if (verse.nextReviewDate == null || verse.nextReviewDate <= today) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                        IconButton(onClick = { haptics.pressed { onDelete(verse.id) } }) {
-                            Icon(Icons.Default.Delete, contentDescription = "Delete ${verse.reference}", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Box {
+                            IconButton(onClick = { menuExpanded = true }) {
+                                Icon(
+                                    Icons.Default.MoreVert,
+                                    contentDescription = "Options for ${verse.reference}",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = menuExpanded,
+                                onDismissRequest = { menuExpanded = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("Delete") },
+                                    onClick = {
+                                        menuExpanded = false
+                                        haptics.pressed { onDelete(verse.id) }
+                                    }
+                                )
+                            }
                         }
                     }
                 }
