@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
@@ -24,8 +23,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Tab
-import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -131,18 +128,12 @@ fun BibleScreen(viewModel: MainViewModel) {
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
-        topBar = { 
-            Column(modifier = Modifier.statusBarsPadding()) {
-                PrimaryTabRow(selectedTabIndex = selectedTabIndex) {
-                    tabs.forEachIndexed { index, title ->
-                        Tab(
-                            text = { Text(title) },
-                            selected = selectedTabIndex == index,
-                            onClick = { haptics.selected { selectedTabIndex = index } }
-                        )
-                    }
-                }
-            }
+        topBar = {
+            DisciplineTabRow(
+                tabs = tabs,
+                selectedTabIndex = selectedTabIndex,
+                onTabSelected = { selectedTabIndex = it }
+            )
         }
     ) { padding ->
         if (selectedTabIndex == 0) {

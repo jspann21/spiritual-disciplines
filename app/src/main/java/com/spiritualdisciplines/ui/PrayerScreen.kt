@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -45,8 +44,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Tab
-import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -119,21 +116,11 @@ fun PrayerScreen(viewModel: MainViewModel) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            PrimaryTabRow(
+            DisciplineTabRow(
+                tabs = listOf("Active", "Archived"),
                 selectedTabIndex = selectedTabIndex,
-                modifier = Modifier.statusBarsPadding()
-            ) {
-                Tab(
-                    selected = selectedTabIndex == 0,
-                    onClick = { haptics.selected { selectedTabIndex = 0 } },
-                    text = { Text("Active") }
-                )
-                Tab(
-                    selected = selectedTabIndex == 1,
-                    onClick = { haptics.selected { selectedTabIndex = 1 } },
-                    text = { Text("Archived") }
-                )
-            }
+                onTabSelected = { selectedTabIndex = it }
+            )
         },
         floatingActionButton = {
             if (selectedTabIndex == 0) {

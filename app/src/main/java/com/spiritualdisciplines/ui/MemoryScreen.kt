@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
@@ -48,8 +47,6 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Tab
-import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -99,22 +96,15 @@ fun MemoryScreen(viewModel: MainViewModel) {
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
-        topBar = { 
-            Column(modifier = Modifier.statusBarsPadding()) {
-                PrimaryTabRow(selectedTabIndex = selectedTab) {
-                    listOf("Library", "Practice").forEachIndexed { index, title ->
-                        Tab(
-                            selected = selectedTab == index,
-                            onClick = {
-                                haptics.select()
-                                selectedTab = index
-                                if (index == 0) practiceVerseId = null
-                            },
-                            text = { Text(title) }
-                        )
-                    }
+        topBar = {
+            DisciplineTabRow(
+                tabs = listOf("Library", "Practice"),
+                selectedTabIndex = selectedTab,
+                onTabSelected = { index ->
+                    selectedTab = index
+                    if (index == 0) practiceVerseId = null
                 }
-            }
+            )
         },
         floatingActionButton = {
             if (selectedTab == 0) {

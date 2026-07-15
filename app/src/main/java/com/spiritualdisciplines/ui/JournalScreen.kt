@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -25,7 +24,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AutoStories
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
@@ -98,10 +96,10 @@ fun JournalScreen(viewModel: MainViewModel) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            JournalTopBar(
-                showingArchive = showingArchive,
-                onShowArchive = { showingArchive = true },
-                onBack = { showingArchive = false }
+            DisciplineTabRow(
+                tabs = listOf("Today Journal", "Past Entries"),
+                selectedTabIndex = if (showingArchive) 1 else 0,
+                onTabSelected = { showingArchive = it == 1 }
             )
         }
     ) { padding ->
@@ -124,42 +122,6 @@ fun JournalScreen(viewModel: MainViewModel) {
                 onDateChange = { selectedDate = it },
                 onSave = viewModel::saveJournalEntry
             )
-        }
-    }
-}
-
-@Composable
-private fun JournalTopBar(
-    showingArchive: Boolean,
-    onShowArchive: () -> Unit,
-    onBack: () -> Unit
-) {
-    val haptics = rememberExpressiveHaptics()
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.background)
-            .statusBarsPadding()
-            .padding(start = 12.dp, end = 12.dp, top = 24.dp, bottom = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        if (showingArchive) {
-            IconButton(onClick = { haptics.pressed(onBack) }) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back to journal")
-            }
-        } else {
-            Spacer(Modifier.width(12.dp))
-        }
-        Text(
-            text = if (showingArchive) "Past entries" else "Journal",
-            style = MaterialTheme.typography.headlineMedium,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.weight(1f)
-        )
-        if (!showingArchive) {
-            IconButton(onClick = { haptics.pressed(onShowArchive) }) {
-                Icon(Icons.Default.AutoStories, contentDescription = "Past entries")
-            }
         }
     }
 }
