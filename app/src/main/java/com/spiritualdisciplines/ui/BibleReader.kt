@@ -96,6 +96,24 @@ private data class BibleParagraph(
     val verses: List<BibleVerse>
 )
 
+private val SUPERSCRIPT_HTML_REGEX = Regex("(?is)<sup\\b[^>]*>.*?</sup>")
+private val STRIKETHROUGH_HTML_REGEX = Regex("(?is)<S\\b[^>]*>.*?</S>")
+private val HTML_BREAK_REGEX = Regex("(?i)<br\\s*/?>")
+private val CLOSING_PARAGRAPH_REGEX = Regex("(?i)</p\\s*>")
+private val OPENING_PARAGRAPH_REGEX = Regex("(?i)<p\\b[^>]*>")
+private val CLOSING_DIV_REGEX = Regex("(?i)</div\\s*>")
+private val OPENING_DIV_REGEX = Regex("(?i)<div\\b[^>]*>")
+private val SENTENCE_SPACING_REGEX = Regex("(^|[;.!?]) {2,}(?=\\S)")
+private val REPEATED_HORIZONTAL_SPACE_REGEX = Regex("[ \\t]{2,}")
+private val PADDED_LINE_BREAK_REGEX = Regex(" *\n *")
+private val EXCESSIVE_LINE_BREAK_REGEX = Regex("\n{3,}")
+private val EXPLICIT_HEADING_REGEX =
+    Regex("(?is)^\\s*<(b|strong)\\b[^>]*>(.*?)</\\1>\\s*<br\\s*/?>")
+private val PLAIN_HEADING_REGEX = Regex("(?is)^\\s*([^<\\n]{1,90})<br\\s*/?>")
+private val WHITESPACE_REGEX = Regex("\\s+")
+private val PSALM_HEADING_REGEX = Regex("^Psalm\\s+\\d+", RegexOption.IGNORE_CASE)
+private val SIGNIFICANT_WORD_REGEX = Regex("[\\p{L}\\p{N}’']+")
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun BibleReader(
@@ -658,32 +676,31 @@ private fun parseChapterVerses(
 
 private fun cleanBibleHtml(rawHtml: String): String {
     val layoutAwareHtml = rawHtml
-        .replace(Regex("(?is)<sup\\b[^>]*>.*?</sup>"), "")
-        .replace(Regex("(?is)<S\\b[^>]*>.*?</S>"), "")
-        .replace(Regex("(?i)<br\\s*/?>"), "\n")
-        .replace(Regex("(?i)</p\\s*>"), "\n\n")
-        .replace(Regex("(?i)<p\\b[^>]*>"), "")
-        .replace(Regex("(?i)</div\\s*>"), "\n\n")
-        .replace(Regex("(?i)<div\\b[^>]*>"), "")
+        .replace(SUPERSCRIPT_HTML_REGEX, "")
+        .replace(STRIKETHROUGH_HTML_REGEX, "")
+        .replace(HTML_BREAK_REGEX, "\n")
+        .replace(CLOSING_PARAGRAPH_REGEX, "\n\n")
+        .replace(OPENING_PARAGRAPH_REGEX, "")
+        .replace(CLOSING_DIV_REGEX, "\n\n")
+        .replace(OPENING_DIV_REGEX, "")
 
     return HtmlCompat.fromHtml(layoutAwareHtml, HtmlCompat.FROM_HTML_MODE_LEGACY)
         .toString()
-        .replace(Regex("(^|[;.!?]) {2,}(?=\\S)"), "$1\n")
-        .replace(Regex("[ \\t]{2,}"), " ")
-        .replace(Regex(" *\n *"), "\n")
-        .replace(Regex("\n{3,}"), "\n\n")
+        .replace(SENTENCE_SPACING_REGEX, "$1\n")
+        .replace(REPEATED_HORIZONTAL_SPACE_REGEX, " ")
+        .replace(PADDED_LINE_BREAK_REGEX, "\n")
+        .replace(EXCESSIVE_LINE_BREAK_REGEX, "\n\n")
         .trim()
 }
 
 private fun extractLeadingHeading(rawHtml: String): String? {
-    val explicitMatch = Regex("(?is)^\\s*<(b|strong)\\b[^>]*>(.*?)</\\1>\\s*<br\\s*/?>")
-        .find(rawHtml)
+    val explicitMatch = EXPLICIT_HEADING_REGEX.find(rawHtml)
     if (explicitMatch != null) {
         return htmlToPlainText(explicitMatch.groupValues[2])
             .takeIf { it.isNotBlank() }
     }
 
-    val plainMatch = Regex("(?is)^\\s*([^<\\n]{1,90})<br\\s*/?>").find(rawHtml)
+    val plainMatch = PLAIN_HEADING_REGEX.find(rawHtml)
         ?: return null
     val headingText = htmlToPlainText(plainMatch.groupValues[1])
 
@@ -692,25 +709,25 @@ private fun extractLeadingHeading(rawHtml: String): String? {
 
 private fun String.removeLeadingHeading(): String =
     when {
-        Regex("(?is)^\\s*<(b|strong)\\b[^>]*>.*?</\\1>\\s*<br\\s*/?>").containsMatchIn(this) ->
-            replaceFirst(Regex("(?is)^\\s*<(b|strong)\\b[^>]*>.*?</\\1>\\s*<br\\s*/?>"), "")
+        EXPLICIT_HEADING_REGEX.containsMatchIn(this) ->
+            replaceFirst(EXPLICIT_HEADING_REGEX, "")
         extractLeadingHeading(this) != null ->
-            replaceFirst(Regex("(?is)^\\s*[^<\\n]{1,90}<br\\s*/?>"), "")
+            replaceFirst(PLAIN_HEADING_REGEX, "")
         else -> this
     }
 
 private fun htmlToPlainText(rawHtml: String): String =
     HtmlCompat.fromHtml(rawHtml, HtmlCompat.FROM_HTML_MODE_LEGACY)
         .toString()
-        .replace(Regex("\\s+"), " ")
+        .replace(WHITESPACE_REGEX, " ")
         .trim()
 
 private fun isPlainHeading(text: String): Boolean {
     if (text.isBlank() || text.length > 90) return false
     if (text.last() in listOf('.', ',', ';', ':', '?', '!', '”', '"')) return false
-    if (Regex("^Psalm\\s+\\d+", RegexOption.IGNORE_CASE).matches(text)) return true
+    if (PSALM_HEADING_REGEX.matches(text)) return true
 
-    val significantWords = Regex("[\\p{L}\\p{N}’']+")
+    val significantWords = SIGNIFICANT_WORD_REGEX
         .findAll(text)
         .map { it.value }
         .filter { it.length > 3 }
