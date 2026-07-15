@@ -159,7 +159,7 @@ fun PrayerScreen(viewModel: MainViewModel) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 if (filteredRequests.isEmpty()) {
                     item {
@@ -171,7 +171,7 @@ fun PrayerScreen(viewModel: MainViewModel) {
                 }
                 items(filteredRequests, key = { it.id }) { req ->
                     var menuExpanded by remember(req.id) { mutableStateOf(false) }
-                    Card(modifier = Modifier.fillMaxWidth()) {
+                    DisciplineCard(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
                                 Column(modifier = Modifier.weight(1f)) {

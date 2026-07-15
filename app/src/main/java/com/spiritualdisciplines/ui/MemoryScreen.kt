@@ -170,15 +170,15 @@ private fun MemoryLibrary(
     val haptics = rememberExpressiveHaptics()
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 20.dp),
+        contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
             Card(
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-                shape = RoundedCornerShape(20.dp)
+                shape = RoundedCornerShape(16.dp)
             ) {
-                Column(Modifier.padding(20.dp)) {
+                Column(Modifier.padding(16.dp)) {
                     Text(
                         if (dueCount > 0) "$dueCount ${if (dueCount == 1) "verse" else "verses"} ready" else "You're caught up",
                         style = MaterialTheme.typography.titleLarge
@@ -228,11 +228,9 @@ private fun MemoryLibrary(
             }
         } else {
             items(verses, key = { it.id }) { verse ->
-                Card(
+                DisciplineCard(
                     onClick = { haptics.selected { onPracticeVerse(verse.id) } },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    shape = RoundedCornerShape(16.dp)
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(start = 16.dp, top = 14.dp, bottom = 14.dp, end = 6.dp),

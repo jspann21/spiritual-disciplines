@@ -192,7 +192,7 @@ private fun JournalEditor(
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 28.dp)
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 28.dp)
     ) {
         item {
             CompactDateNavigator(
@@ -387,8 +387,8 @@ private fun JournalArchive(
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 32.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 32.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
             OutlinedTextField(
@@ -397,7 +397,7 @@ private fun JournalArchive(
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                 placeholder = { Text("Search entries") },
                 singleLine = true,
-                shape = RoundedCornerShape(14.dp),
+                shape = RoundedCornerShape(16.dp),
                 modifier = Modifier.fillMaxWidth()
             )
         }
@@ -442,13 +442,11 @@ private fun EmptyArchive(isSearching: Boolean) {
 private fun ArchiveEntry(entry: JournalEntry, onClick: () -> Unit) {
     val date = remember(entry.date) { LocalDate.parse(entry.date) }
     val haptics = rememberExpressiveHaptics()
-    Surface(
-        color = MaterialTheme.colorScheme.surface,
-        shape = RoundedCornerShape(15.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-        modifier = Modifier.fillMaxWidth().clickable { haptics.selected(onClick) }
+    DisciplineCard(
+        onClick = { haptics.selected(onClick) },
+        modifier = Modifier.fillMaxWidth()
     ) {
-        Row(Modifier.padding(15.dp), verticalAlignment = Alignment.Top) {
+        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.Top) {
             Icon(
                 Icons.Default.Today,
                 contentDescription = null,
