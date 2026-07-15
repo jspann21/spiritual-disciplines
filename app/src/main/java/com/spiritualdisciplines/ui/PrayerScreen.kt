@@ -2,6 +2,7 @@
 
 package com.spiritualdisciplines.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -20,15 +22,18 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FormatBold
 import androidx.compose.material.icons.filled.FormatItalic
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -156,6 +161,14 @@ fun PrayerScreen(viewModel: MainViewModel) {
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                if (filteredRequests.isEmpty()) {
+                    item {
+                        PrayerEmptyState(
+                            archived = selectedTabIndex == 1,
+                            onAdd = { showDialog = true }
+                        )
+                    }
+                }
                 items(filteredRequests, key = { it.id }) { req ->
                     var menuExpanded by remember(req.id) { mutableStateOf(false) }
                     Card(modifier = Modifier.fillMaxWidth()) {
@@ -268,6 +281,56 @@ fun PrayerScreen(viewModel: MainViewModel) {
                     editingRequest = null
                 }
             )
+        }
+    }
+}
+
+@Composable
+private fun PrayerEmptyState(archived: Boolean, onAdd: () -> Unit) {
+    val haptics = rememberExpressiveHaptics()
+
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 72.dp, horizontal = 32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(64.dp)
+                .background(MaterialTheme.colorScheme.primaryContainer, CircleShape)
+        ) {
+            Icon(
+                imageVector = if (archived) Icons.Default.Archive else Icons.Outlined.FavoriteBorder,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(27.dp)
+            )
+        }
+        Spacer(Modifier.height(16.dp))
+        Text(
+            text = if (archived) "No archived prayers yet" else "Start your prayer list",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold
+        )
+        Spacer(Modifier.height(6.dp))
+        Text(
+            text = if (archived) {
+                "Requests you archive will appear here."
+            } else {
+                "Add a request to remember what you want to bring before God."
+            },
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
+        )
+        if (!archived) {
+            Spacer(Modifier.height(16.dp))
+            Button(
+                onClick = { haptics.pressed(onAdd) },
+                shapes = ButtonDefaults.shapes()
+            ) {
+                Text("Add prayer")
+            }
         }
     }
 }
