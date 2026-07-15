@@ -196,7 +196,7 @@ fun BibleReader(
                             isLoading = false
                         }
                     } else {
-                        val urlString = "https://bolls.life/get-chapter/$translation/$bookId/$selectedChapter/"
+                        val urlString = "https://bolls.life/get-chapter/$translation/$bookId/$chapter/"
                         val url = URL(urlString)
                         val connection = url.openConnection() as HttpURLConnection
                         try {

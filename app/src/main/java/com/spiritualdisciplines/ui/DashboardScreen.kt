@@ -133,7 +133,6 @@ fun DashboardScreen(viewModel: MainViewModel, onSettingsClick: () -> Unit) {
                                     sb.append(vText).append(" ")
                                 }
                                 val fetchedText = sb.toString().trim()
-                                votdText = fetchedText
 
                                 viewModel.insertCachedVerse(
                                     CachedVerse(
