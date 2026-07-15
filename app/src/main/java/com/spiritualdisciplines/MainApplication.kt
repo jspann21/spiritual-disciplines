@@ -1,10 +1,13 @@
 package com.spiritualdisciplines
 
 import android.app.Application
+import androidx.work.WorkManager
 import com.spiritualdisciplines.data.AppDatabase
 import com.spiritualdisciplines.data.AppPreferences
 import com.spiritualdisciplines.data.AppRepository
 import com.spiritualdisciplines.update.UpdateManager
+import com.spiritualdisciplines.worker.UpdateCheckWorker
+import com.spiritualdisciplines.worker.VerseCacheWorker
 
 class MainApplication : Application() {
     lateinit var database: AppDatabase
@@ -18,5 +21,9 @@ class MainApplication : Application() {
         repository = AppRepository(database.appDao())
         appPreferences = AppPreferences(this)
         updateManager = UpdateManager(this)
+        if (WorkManager.isInitialized()) {
+            VerseCacheWorker.schedule(this)
+            UpdateCheckWorker.schedule(this)
+        }
     }
 }

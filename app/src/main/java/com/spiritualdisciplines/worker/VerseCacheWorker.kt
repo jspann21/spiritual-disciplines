@@ -1,8 +1,10 @@
 package com.spiritualdisciplines.worker
 
 import android.content.Context
+import androidx.work.Constraints
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
@@ -148,7 +150,11 @@ class VerseCacheWorker(
         private val HTML_TAG_REGEX = Regex("<.*?>")
 
         fun schedule(context: Context) {
+            val constraints = Constraints.Builder()
+                .setRequiredNetworkType(NetworkType.CONNECTED)
+                .build()
             val workRequest = PeriodicWorkRequestBuilder<VerseCacheWorker>(12, TimeUnit.HOURS)
+                .setConstraints(constraints)
                 .build()
 
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(
