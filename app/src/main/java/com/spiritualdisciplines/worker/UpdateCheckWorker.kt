@@ -57,7 +57,7 @@ class UpdateCheckWorker(
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val notification = NotificationCompat.Builder(applicationContext, CHANNEL_ID)
-            .setSmallIcon(R.mipmap.ic_launcher)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle("Spiritual Disciplines update available")
             .setContentText("Version ${update.versionName} is ready to download.")
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)

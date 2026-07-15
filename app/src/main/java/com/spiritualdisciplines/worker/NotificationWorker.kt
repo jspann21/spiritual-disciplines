@@ -54,7 +54,7 @@ class NotificationWorker(
         )
 
         val builder = NotificationCompat.Builder(context, channelId)
-            .setSmallIcon(R.mipmap.ic_launcher)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle("Daily Discipline Reminder")
             .setContentText("Have you completed your spiritual disciplines today?")
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
