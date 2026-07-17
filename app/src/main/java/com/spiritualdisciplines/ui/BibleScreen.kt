@@ -167,7 +167,7 @@ fun BibleScreen(viewModel: MainViewModel) {
                             },
                             isToday = selectedPlanDay == dayOfYear,
                             canGoPrevious = selectedPlanDay > 1,
-                            canGoNext = selectedPlanDay < dayOfYear,
+                            canGoNext = true,
                             previousContentDescription = "Previous reading day",
                             nextContentDescription = "Next reading day",
                             onPrevious = { selectedPlanDay-- },
